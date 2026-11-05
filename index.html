@@ -605,32 +605,90 @@
   @keyframes csTitle{from{opacity:0;transform:translateY(20px);letter-spacing:9px;filter:blur(7px)}
     to{opacity:1;transform:none;filter:none}}
 
-  /* ---------- touch controls (phones) ---------- */
+  /* ---------- touch controls (phones) — styled like the broadcast HUD ---------- */
   #touch{position:fixed;inset:0;z-index:42;pointer-events:none;display:none;touch-action:none;
-    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;font-family:var(--disp)}
   body.touch #touch.on{display:block}
-  .t-stick{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:max(20px,env(safe-area-inset-bottom));
-    width:132px;height:132px;border-radius:50%;background:rgba(10,16,24,.30);
-    border:2px solid rgba(255,255,255,.16);pointer-events:auto;touch-action:none;backdrop-filter:blur(2px)}
-  .t-knob{position:absolute;left:50%;top:50%;width:58px;height:58px;
-    transform:translate(-50%,-50%);border-radius:50%;
-    background:radial-gradient(circle at 38% 34%, #eef2f7, #98a4b4);box-shadow:0 4px 16px rgba(0,0,0,.55)}
-  .t-actions{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
-    display:grid;grid-template-columns:repeat(3,1fr);gap:9px;pointer-events:none}
-  .t-btn{pointer-events:auto;touch-action:none;width:66px;height:66px;border-radius:50%;
-    border:2px solid rgba(255,255,255,.22);background:linear-gradient(180deg,rgba(30,40,56,.78),rgba(14,20,30,.82));
-    color:#dfe6ee;font-family:var(--font);font-weight:900;font-size:11px;letter-spacing:.5px;
-    display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.05;
-    box-shadow:0 4px 14px rgba(0,0,0,.5);transition:transform .05s, background .05s}
-  .t-btn.jab{background:linear-gradient(180deg,#2f7dff,#1c54b8);color:#fff;border-color:#5b97ff}
-  .t-btn.hold{grid-column:span 3;width:auto;height:46px;border-radius:14px;font-size:12px}
-  .t-btn.hold.block{background:linear-gradient(180deg,#caa42f,#9a7716);color:#1a1300;border-color:#f0c75a}
-  .t-btn.press{transform:scale(.9);filter:brightness(1.4)}
-  .t-btn.hold.clinch{background:linear-gradient(180deg,#5a3d8a,#38245e);border-color:#8e6cc8;color:#fff}
-  .t-swipe{position:absolute;left:34%;right:0;top:12%;bottom:44%;pointer-events:auto;touch-action:none;
-    display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px}
-  .t-swipe span{font-size:10px;font-weight:900;letter-spacing:1.5px;color:rgba(255,255,255,.22);text-align:center;line-height:1.5}
-  .t-swipe small{font-size:9px;letter-spacing:.5px;font-weight:700}
+  /* movement: a floating stick — it appears under the thumb anywhere in the lower left */
+  .t-zone{position:absolute;left:0;bottom:0;width:38%;height:72%;pointer-events:auto;touch-action:none}
+  .t-stick{position:absolute;left:max(22px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));
+    width:128px;height:128px;border-radius:50%;pointer-events:none;transition:opacity .2s;opacity:.62;
+    background:radial-gradient(circle, rgba(10,16,24,.15) 0 38%, rgba(10,16,24,.55) 39% 100%);
+    border:2px solid rgba(255,255,255,.14);box-shadow:inset 0 0 0 7px rgba(255,255,255,.035), 0 6px 22px rgba(0,0,0,.45)}
+  .t-stick.live{opacity:1;border-color:rgba(55,192,255,.55);box-shadow:inset 0 0 0 7px rgba(55,192,255,.08), 0 0 26px rgba(55,192,255,.22)}
+  .t-stick i{position:absolute;width:0;height:0;border:7px solid transparent;opacity:.55}
+  .t-stick i.u{left:50%;top:7px;margin-left:-7px;border-bottom-color:#fff;border-top-width:0}
+  .t-stick i.d{left:50%;bottom:7px;margin-left:-7px;border-top-color:#fff;border-bottom-width:0}
+  .t-stick i.l{top:50%;left:7px;margin-top:-7px;border-right-color:#fff;border-left-width:0}
+  .t-stick i.r{top:50%;right:7px;margin-top:-7px;border-left-color:#fff;border-right-width:0}
+  .t-stick b{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:10px;font-weight:800;letter-spacing:2.5px;color:rgba(255,255,255,.4)}
+  .t-stick.live b{opacity:0}
+  .t-knob{position:absolute;left:50%;top:50%;width:56px;height:56px;transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle at 36% 30%, #ffffff 0, #d9e2ec 30%, #8c99aa 100%);
+    box-shadow:0 5px 16px rgba(0,0,0,.6), inset 0 -4px 8px rgba(0,0,0,.25), 0 0 0 3px rgba(47,125,255,.85)}
+  .t-stick.live .t-knob{box-shadow:0 5px 16px rgba(0,0,0,.6), inset 0 -4px 8px rgba(0,0,0,.25), 0 0 0 3px #37c0ff, 0 0 18px rgba(55,192,255,.7)}
+  /* buttons */
+  .t-btn{position:absolute;pointer-events:auto;touch-action:none;border-radius:50%;padding:0;
+    width:58px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    color:#eef2f7;font-family:var(--disp);font-style:italic;font-weight:900;font-size:12px;letter-spacing:.6px;line-height:1;
+    background:radial-gradient(circle at 50% 30%, rgba(40,52,70,.88), rgba(8,12,18,.9) 72%);
+    border:2px solid var(--rim,rgba(255,255,255,.25));
+    box-shadow:0 5px 16px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12), inset 0 0 14px rgba(0,0,0,.5);
+    text-shadow:0 1px 3px #000;transition:transform .06s, box-shadow .06s, filter .06s}
+  .t-btn svg{width:22px;height:22px;fill:none;stroke:var(--rim,#fff);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #000)}
+  .t-btn.L{--rim:#37c0ff} .t-btn.R{--rim:#ff5a4e}
+  .t-btn.big{width:68px;height:68px;font-size:14px}
+  .t-btn.big svg{width:25px;height:25px}
+  .t-btn.jab{background:radial-gradient(circle at 50% 28%, #3d8cff, #1a4db0 75%);border-color:#8fc2ff}
+  .t-btn.jab svg{stroke:#fff}
+  .t-btn.cross{background:radial-gradient(circle at 50% 28%, #ff5a4e, #a4161a 75%);border-color:#ffa59d}
+  .t-btn.cross svg{stroke:#fff}
+  .t-btn.press{transform:scale(.9);filter:brightness(1.35);
+    box-shadow:0 0 0 3px var(--rim,#fff), 0 0 22px var(--rim,#fff), inset 0 0 14px rgba(0,0,0,.4)}
+  .t-btn.jab.press{--rim:#8fc2ff} .t-btn.cross.press{--rim:#ffa59d}
+  .t-btn.press::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid var(--rim,#fff);animation:tRipple .35s ease-out forwards}
+  @keyframes tRipple{from{transform:scale(1);opacity:.9}to{transform:scale(1.55);opacity:0}}
+  /* the punch cluster: right thumb */
+  .t-pad{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));
+    width:214px;height:178px;pointer-events:none}
+  .t-pad [data-p="jab"]   {right:4px;  bottom:56px}
+  .t-pad [data-p="cross"] {right:78px; bottom:6px}
+  .t-pad [data-p="lhook"] {right:10px; bottom:130px;width:52px;height:52px}
+  .t-pad [data-p="rhook"] {right:154px;bottom:4px;width:52px;height:52px}
+  .t-pad [data-p="lupper"]{right:74px; bottom:110px;width:52px;height:52px}
+  .t-pad [data-p="rupper"]{right:140px;bottom:62px;width:52px;height:52px}
+  .t-pad [data-p="lhook"] svg,.t-pad [data-p="rhook"] svg,.t-pad [data-p="lupper"] svg,.t-pad [data-p="rupper"] svg{width:19px;height:19px}
+  .t-pad [data-p="lhook"],.t-pad [data-p="rhook"],.t-pad [data-p="lupper"],.t-pad [data-p="rupper"]{font-size:10.5px}
+  /* defence: block next to the punches (hold), dodge + clinch for the left thumb above the stick */
+  .t-btn.block{right:calc(max(14px,env(safe-area-inset-right)) + 222px);bottom:max(16px,env(safe-area-inset-bottom));
+    width:62px;height:96px;border-radius:30px 30px 22px 22px;--rim:#e8b84b;font-size:13px;letter-spacing:1.5px}
+  .t-btn.block svg{width:26px;height:26px}
+  .t-btn.block.press{background:radial-gradient(circle at 50% 30%, #f3cd6b, #8d6a12 80%);color:#1b1300;text-shadow:none}
+  .t-btn.block.press svg{stroke:#1b1300}
+  .t-btn.dodge{left:calc(max(22px,env(safe-area-inset-left)) + 140px);bottom:calc(max(22px,env(safe-area-inset-bottom)) + 70px);
+    width:56px;height:56px;--rim:#7ef0c0;font-size:10px}
+  .t-btn.clinch{left:calc(max(22px,env(safe-area-inset-left)) + 150px);bottom:max(22px,env(safe-area-inset-bottom));
+    width:48px;height:48px;--rim:#b28cff;font-size:9.5px}
+  .t-btn.dodge svg,.t-btn.clinch svg{width:19px;height:19px}
+  /* swipe area (right side, above the buttons) + a hint that leaves once you've got it */
+  .t-swipe{position:absolute;left:38%;right:0;top:20%;bottom:50%;pointer-events:auto;touch-action:none}
+  .t-hint{position:absolute;left:50%;top:max(96px,14%);transform:translateX(-50%);pointer-events:none;white-space:nowrap;
+    padding:6px 14px 6px 12px;border-radius:6px;background:rgba(8,12,18,.72);border-left:3px solid var(--accent);
+    font-family:var(--disp);font-weight:800;font-size:12px;letter-spacing:1.5px;color:#eef2f7;transition:opacity .6s}
+  .t-hint em{font-style:normal;color:var(--accent)}
+  .t-hint.gone{opacity:0}
+  /* on a phone the thumbs own the bottom corners: the lower-third commentary moves up, the corner tags go */
+  body.touch.tctl #hud .camtag, body.touch.tctl #hud .bug{display:none}
+  body.touch.tctl #hud .lower{left:50%;right:auto;transform:translateX(-50%);bottom:auto;top:max(128px,30%);width:min(420px,52vw)}
+  body.touch.tctl #hud .commentary{font-size:12px;text-align:center;border-left:none;border-top:2px solid var(--accent);border-radius:0 0 6px 6px;
+    background:linear-gradient(180deg,var(--panel2),rgba(10,14,20,.55))}
+  @media (orientation:portrait){                 /* phone held upright: defence buttons stack above the thumbs */
+    .t-btn.block{right:max(18px,env(safe-area-inset-right));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 196px);width:104px;height:54px;border-radius:27px;flex-direction:row;gap:6px}
+    .t-btn.dodge{left:max(22px,env(safe-area-inset-left));bottom:calc(max(22px,env(safe-area-inset-bottom)) + 150px)}
+    .t-btn.clinch{left:calc(max(22px,env(safe-area-inset-left)) + 70px);bottom:calc(max(22px,env(safe-area-inset-bottom)) + 154px)}
+    .t-zone{width:44%;height:50%} .t-swipe{left:30%;top:22%;bottom:42%} }
+  @media (max-height:340px){ .t-pad{transform:scale(.86);transform-origin:right bottom} .t-btn.block{transform:scale(.86);transform-origin:right bottom}
+    .t-stick{width:112px;height:112px} }
   .t-trail{position:fixed;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(255,255,255,.55);
     pointer-events:none;z-index:43;transition:opacity .25s, transform .25s}
   .ctlscheme{display:flex;align-items:center;gap:14px;justify-content:center;margin-top:16px}
@@ -877,18 +935,20 @@
 
 <!-- TOUCH CONTROLS (phones) -->
 <div id="touch">
-  <div id="tSwipe" class="t-swipe"><span>WISCHEN = SCHLAGEN<br><small>Tippen = Jab · ↑ Gerade · ← → Haken · ↖ ↗ Uppercut · ↙ ↘ Körper · ↓ tief</small></span></div>
-  <div id="tStick" class="t-stick"><div id="tKnob" class="t-knob"></div></div>
-  <div class="t-actions">
-    <button class="t-btn" data-p="lhook">L-HOOK</button>
-    <button class="t-btn jab" data-p="jab">JAB</button>
-    <button class="t-btn" data-p="rhook">R-HOOK</button>
-    <button class="t-btn" data-p="lupper">L-UPP</button>
-    <button class="t-btn" data-p="cross">GERADE</button>
-    <button class="t-btn" data-p="rupper">R-UPP</button>
-    <button class="t-btn hold" data-hold="shift">AUSWEICHEN</button>
-    <button class="t-btn hold clinch" id="tClinch">CLINCH</button>
-    <button class="t-btn hold block" data-hold=" ">BLOCK</button>
+  <div id="tSwipe" class="t-swipe"></div>
+  <div id="tHint" class="t-hint">RECHTS <em>WISCHEN</em> = SCHLAGEN · <em>TIPPEN</em> = JAB</div>
+  <div id="tZone" class="t-zone"></div>
+  <div id="tStick" class="t-stick"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i><div id="tKnob" class="t-knob"></div><b>BEWEGEN</b></div>
+  <button class="t-btn dodge" data-hold="shift"><svg viewBox="0 0 24 24"><path d="M5 18c3-9 11-9 14 0"/><path d="M3 15l2 3.2 3.4-1.6"/><path d="M21 15l-2 3.2-3.4-1.6"/></svg><span>AUSW.</span></button>
+  <button class="t-btn clinch" id="tClinch"><svg viewBox="0 0 24 24"><path d="M3 9h7l2 3-2 3H3"/><path d="M21 9h-7"/><path d="M21 15h-7"/></svg><span>CLINCH</span></button>
+  <button class="t-btn block" data-hold=" "><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z"/></svg><span>BLOCK</span></button>
+  <div class="t-pad">
+    <button class="t-btn L big jab" data-p="jab"><svg viewBox="0 0 24 24"><path d="M3 12h15"/><path d="M14 7l5 5-5 5"/></svg><span>JAB</span></button>
+    <button class="t-btn R big cross" data-p="cross"><svg viewBox="0 0 24 24"><path d="M3 12h15"/><path d="M14 7l5 5-5 5"/></svg><span>GERADE</span></button>
+    <button class="t-btn L" data-p="lhook"><svg viewBox="0 0 24 24"><path d="M4 19C4 9 11 6 19 8"/><path d="M15 4.5l4.2 3.6-4 3.8"/></svg><span>L-HAKEN</span></button>
+    <button class="t-btn R" data-p="rhook"><svg viewBox="0 0 24 24"><path d="M20 19C20 9 13 6 5 8"/><path d="M9 4.5L4.8 8.1l4 3.8"/></svg><span>R-HAKEN</span></button>
+    <button class="t-btn L" data-p="lupper"><svg viewBox="0 0 24 24"><path d="M5 21c7 0 11-6 11-15"/><path d="M11.5 9.5L16 5l4 4.8"/></svg><span>L-UPPER</span></button>
+    <button class="t-btn R" data-p="rupper"><svg viewBox="0 0 24 24"><path d="M19 21C12 21 8 15 8 6"/><path d="M12.5 9.5L8 5 4 9.8"/></svg><span>R-UPPER</span></button>
   </div>
 </div>
 
@@ -2000,12 +2060,27 @@ function updateRopes(dt){
         if(pen<=0) continue;
         const tc=clamp(((x-R.A.x)*ab.x+(z-R.A.z)*ab.z)/(L*L),0.04,0.96), d=Math.min(pen,0.42);
         for(let i=1;i<R.N-1;i++){ const t=i/(R.N-1), sh=t<tc? t/tc : (1-t)/(1-tc);    // the 'V' of a taut rope
-          if(d*sh>R.tgt[i]) R.tgt[i]=d*sh; } } } }
+          if(d*sh>R.tgt[i]) R.tgt[i]=d*sh; } } }
+    // a STEP on the canvas close to the ropes: the ring shakes, the ropes on that side shiver a little
+    if(f._stepSnd!==f._ropeStep){ f._ropeStep=f._stepSnd; const p=f.pos;
+      for(const R of ringRopes){ const plane=R.A.x*R.nrm.x+R.A.z*R.nrm.z, gap=plane-(p.x*R.nrm.x+p.z*R.nrm.z); if(gap>0.9 || gap<-0.3) continue;
+        const ab=R._ab||(R._ab=R.B.clone().sub(R.A)), L=R._L||(R._L=ab.length());
+        const tc=clamp(((p.x-R.A.x)*ab.x+(p.z-R.A.z)*ab.z)/(L*L),0.08,0.92), kick=(0.9-Math.max(0,gap))/0.9*0.3*(f.isRef?0.5:1)*(0.6+Math.random()*0.8);
+        for(let i=1;i<R.N-1;i++){ const t=i/(R.N-1); R.vel[i]+=kick*(t<tc? t/tc : (1-t)/(1-tc))*(Math.random()<0.5?1:-1)*0.5+kick*(t<tc? t/tc : (1-t)/(1-tc))*0.5; } } } }
+  // the ropes of one side are tied together: a man pressing into one drags the ones above / below along
+  if(!updateRopes._sides){ const m={}; for(const R of ringRopes){ const k=R.nrm.x.toFixed(1)+','+R.nrm.z.toFixed(1); (m[k]||(m[k]=[])).push(R); }
+    updateRopes._sides=Object.values(m).map(a=>a.sort((p,q)=>p.A.y-q.A.y)); updateRopes._for=ringRopes; }
+  if(updateRopes._for!==ringRopes) updateRopes._sides=null;
+  else for(const side of updateRopes._sides) for(let h=0;h<side.length;h++){ const R=side[h];
+    if(!R._tg) R._tg=new Float32Array(R.N); R._tg.set(R.tgt); }
+  if(updateRopes._sides) for(const side of updateRopes._sides) for(let h=0;h<side.length;h++){ const R=side[h];
+    for(const nb of [side[h-1],side[h+1]]) if(nb) for(let i=1;i<R.N-1;i++){ const w=nb._tg[i]*0.3; if(w>R.tgt[i]) R.tgt[i]=w; } }
   for(const R of ringRopes){ let moved=false;
     for(let i=1;i<R.N-1;i++){
-      if(R.tgt[i]>0 && R.tgt[i]>R.disp[i]){ R.vel[i]=Math.max(R.vel[i],(R.tgt[i]-R.disp[i])/Math.max(dt,1e-3)*0.5); R.disp[i]=R.tgt[i]; }   // a body pushes it: it gives at once
-      else { const acc=(R.tgt[i]-R.disp[i])*900 - R.vel[i]*6.5;                           // let go: snaps back and twangs (~5 Hz)
+      if(R.tgt[i]>0 && R.tgt[i]>R.disp[i]){ R.vel[i]=Math.max(R.vel[i],(R.tgt[i]-R.disp[i])/Math.max(dt,1e-3)*0.8); R.disp[i]=R.tgt[i]; }   // a body pushes it: it gives at once
+      else { const acc=(R.tgt[i]-R.disp[i])*420 - R.vel[i]*3.4;                           // let go: snaps back and twangs (~3 Hz, rings out ~1 s)
         R.vel[i]+=acc*dt; R.disp[i]+=R.vel[i]*dt; }
+      R.disp[i]=clamp(R.disp[i],-0.12,0.55);
       if(Math.abs(R.vel[i])>2e-4||Math.abs(R.disp[i])>2e-4) moved=true; else { R.vel[i]=0; R.disp[i]=0; } }
     if(moved || R.dirty){ R.mesh.geometry.dispose(); R.mesh.geometry=ropeGeo(R); R.dirty=moved; } }
 }
@@ -4075,6 +4150,7 @@ function touchShouldShow(){
 }
 function touchVis(on){ const t=$('#touch'); if(!t) return;
   t.classList.toggle('on', !!on && touchShouldShow());
+  document.body.classList.toggle('tctl', !!on && touchShouldShow());
   if(!on) clearTouchMove(); }
 function setScheme(s){
   G.controlScheme=s;
@@ -4131,18 +4207,26 @@ function wireTouch(){
   },{passive:false});
   const cb=$('#tClinch'); if(cb) cb.addEventListener('touchstart',e=>{ e.preventDefault(); cb.classList.add('press');
     humanClinch(0); setTimeout(()=>cb.classList.remove('press'),150); },{passive:false});
-  // movement joystick — drag direction maps to W/A/S/D
-  const stick=$('#tStick'), knob=$('#tKnob'); const rad=58; let active=false;
+  // movement joystick — a FLOATING stick: it appears wherever the left thumb lands (lower left), drag = W/A/S/D
+  const stick=$('#tStick'), knob=$('#tKnob'), zone=$('#tZone'); const rad=56; let active=false, sid=null;
   function setFrom(t){ const r=stick.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
     let dx=t.clientX-cx, dy=t.clientY-cy; const len=Math.hypot(dx,dy)||1; const cl=Math.min(len,rad);
     const nx=dx/len, ny=dy/len; knob.style.transform=`translate(calc(-50% + ${nx*cl}px), calc(-50% + ${ny*cl}px))`;
     const dead=0.34; keys['d']=nx>dead; keys['a']=nx<-dead; keys['w']=ny<-dead; keys['s']=ny>dead;   // up = forward
   }
-  stick.addEventListener('touchstart',e=>{ e.preventDefault(); active=true; setFrom(e.changedTouches[0]); },{passive:false});
-  stick.addEventListener('touchmove', e=>{ e.preventDefault(); if(active) setFrom(e.changedTouches[0]); },{passive:false});
-  const end=e=>{ e.preventDefault(); active=false; keys['w']=keys['a']=keys['s']=keys['d']=false;
-    knob.style.transform='translate(-50%,-50%)'; };
-  stick.addEventListener('touchend',end,{passive:false}); stick.addEventListener('touchcancel',end,{passive:false});
+  const mine=e=>[...e.changedTouches].find(t=>t.identifier===sid);
+  zone.addEventListener('touchstart',e=>{ e.preventDefault(); if(active) return; const t=e.changedTouches[0]; sid=t.identifier; active=true;
+    const sz=stick.offsetWidth||128, x=clamp(t.clientX, sz/2+6, innerWidth*0.45), y=clamp(t.clientY, sz/2+6, innerHeight-sz/2-6);
+    stick.style.left=(x-sz/2)+'px'; stick.style.top=(y-sz/2)+'px'; stick.style.bottom='auto'; stick.classList.add('live'); setFrom(t);
+    if(G.state==='knockdown') mashTap(); },{passive:false});
+  zone.addEventListener('touchmove', e=>{ e.preventDefault(); const t=mine(e); if(active && t) setFrom(t); },{passive:false});
+  const end=e=>{ e.preventDefault(); if(!mine(e)) return; active=false; sid=null; keys['w']=keys['a']=keys['s']=keys['d']=false;
+    knob.style.transform='translate(-50%,-50%)'; stick.classList.remove('live'); stick.style.left=stick.style.top=stick.style.bottom=''; };
+  zone.addEventListener('touchend',end,{passive:false}); zone.addEventListener('touchcancel',end,{passive:false});
+  // the swipe hint goes away after the first swipe (and for good after 3 fights)
+  const hint=$('#tHint'); let hintN=0; try{ hintN=+localStorage.getItem('fn_swipehint')||0; }catch(e){}
+  if(hint && hintN>=3) hint.classList.add('gone');
+  sw.addEventListener('touchend',()=>{ if(hint && !hint.classList.contains('gone')){ hint.classList.add('gone'); try{ localStorage.setItem('fn_swipehint', hintN+1); }catch(e){} } });
 }
 
 /* ============================ CONTROLLERS (Gamepad API) ============================
@@ -4690,13 +4774,13 @@ function resolveBodyCollision(a,b){
   clampToRing(a); clampToRing(b);
 }
 function clampToRing(b){
-  const h=G.ringHalf+0.24;                          // the ropes give: a fighter can be driven ~20 cm into them
+  const h=G.ringHalf+0.34;                          // the ropes give: a fighter can be driven ~30 cm into them
   b.pos.x=clamp(b.pos.x,-h,h); b.pos.z=clamp(b.pos.z,-h,h);
 }
 function ropeSpring(b,dt){                          // past the ring line the ropes push back (and bounce a man off)
   if(!b.kb) return; const h=G.ringHalf;
   for(const ax of ['x','z']){ const ex=Math.abs(b.pos[ax])-h; if(ex<=0) continue; const sg=Math.sign(b.pos[ax]);
-    b.kb[ax]-=sg*ex*30*dt;                                                          // the ropes load up like a spring...
+    b.kb[ax]-=sg*ex*20*dt;                                                          // the ropes load up like a spring...
     if(b.kb[ax]*sg<0) b.kb[ax]*=1+dt*1.5;                                            // ...and fire him back out (the bounce)
     else b.pos[ax]-=sg*ex*Math.min(1,dt*1.2); }                                      // leaning on them: eased back in
 }
