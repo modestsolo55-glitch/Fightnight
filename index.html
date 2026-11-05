@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>FIGHT NIGHT: LEGACY — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&display=swap">
 <style>
   :root{
     --bg:#05070b; --ink:#eef2f7; --muted:#8a94a4;
@@ -11,6 +13,7 @@
     --panel:rgba(10,14,20,.82); --panel2:rgba(16,22,30,.92);
     --hp:#37d17a; --hp-mid:#e8b84b; --hp-low:#e0383b; --sta:#37c0ff;
     --font:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --disp:"Barlow Condensed","Arial Narrow","Segoe UI",sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{position:fixed;inset:0;height:100%;width:100%;overflow:hidden;overscroll-behavior:none;
@@ -94,6 +97,94 @@
   .sp-cards .sc-r{display:grid;grid-template-columns:1fr auto auto;gap:10px;font-size:12px;align-items:center}
   .sp-cards .sc-r b{font-variant-numeric:tabular-nums} .sp-cards .sc-r em{font-style:normal;color:var(--accent);font-weight:800;min-width:70px;text-align:right}
   #scoreboard .cards{font-size:12px;color:#cfd8e3;line-height:1.6;margin-top:6px;text-align:center}
+  /* ===== HUD v2: layered bars like the console game ===== */
+  .fb > i, .fb > s, .fb > b{position:absolute;top:0;bottom:0;display:block;text-decoration:none}
+  .fb > i{left:0;z-index:2}
+  .fb > s.ghost{left:0;z-index:1;width:100%;background:linear-gradient(180deg,#fff7e0,#ffb347 60%,#e07a12);transition:width .55s ease .5s}
+  .fb > b.cap{right:0;z-index:3;width:0;background:repeating-linear-gradient(-45deg,#6d0f14 0 4px,#3b070a 4px 8px);
+    box-shadow:inset 2px 0 0 rgba(255,80,80,.55);transition:width .4s}
+  .fnside2.right .fb > i, .fnside2.right .fb > s.ghost{left:auto;right:0}
+  .fnside2.right .fb > b.cap{right:auto;left:0;box-shadow:inset -2px 0 0 rgba(255,80,80,.55)}
+  .fb.hp{height:17px}
+  .fb.hp.low{animation:lowhp .55s ease-in-out infinite alternate}
+  @keyframes lowhp{from{border-color:#c9d3df}to{border-color:#ff4b4b;box-shadow:0 0 14px rgba(255,60,60,.7), inset 0 2px 4px rgba(0,0,0,.7)}}
+  .nmrow{display:flex;align-items:center;gap:8px;margin-left:10%}
+  .fnside2.right .nmrow{flex-direction:row-reverse;margin-left:0;margin-right:10%}
+  .fnside2 .nmrow .nmplate{margin:2px 0 0}
+  .nmplate{font-family:var(--disp);font-size:19px;letter-spacing:1.5px;padding:1px 18px 2px}
+  .fnside2.left .nmplate{border-left:4px solid var(--blue)}
+  .fnside2.right .nmplate{border-right:4px solid var(--red)}
+  .kdots{display:flex;gap:4px}
+  .kdots i{width:9px;height:9px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b;display:block}
+  .hurttag{font-family:var(--disp);font-weight:900;font-size:13px;letter-spacing:2px;color:#fff;background:#c4161c;
+    padding:1px 8px;border-radius:3px;opacity:0;transform:scale(.8);transition:.15s}
+  .fnside2.hurt .hurttag{opacity:1;transform:none;animation:hurtp .5s ease-in-out infinite alternate}
+  @keyframes hurtp{from{background:#c4161c}to{background:#ff4040}}
+  .fnclock{font-family:var(--disp);font-size:36px;letter-spacing:1px}
+  .fnround{font-family:var(--disp);font-size:13px;letter-spacing:3px}
+  .callout{font-family:var(--disp);font-style:italic;font-size:86px;letter-spacing:3px}
+  .callout small{font-family:var(--disp);font-style:normal;font-size:22px}
+  #count .n{font-family:var(--disp);font-size:220px}
+  #hud .ticker{display:none!important}
+  .bug,.camtag{bottom:14px}
+  .lower{bottom:46px}
+  .controls{transition:opacity .6s}
+  /* hurt: the player's own vision swims (red edges, the world darkens) */
+  #stunFx{position:fixed;inset:0;z-index:34;pointer-events:none;opacity:0;transition:opacity .25s;
+    background:radial-gradient(ellipse at center, transparent 38%, rgba(70,0,0,.55) 78%, rgba(20,0,0,.9) 100%)}
+  #stunFx.beat{animation:beat .75s ease-out}
+  @keyframes beat{0%{filter:brightness(1.6)}100%{filter:brightness(1)}}
+  /* pause menu */
+  #pauseOv{position:fixed;inset:0;z-index:58;display:none;align-items:center;justify-content:center;
+    background:rgba(3,5,9,.72);backdrop-filter:blur(5px)}
+  #pauseOv.on{display:flex}
+  .po-box{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(520px,92vw);text-align:center}
+  .po-t{font-family:var(--disp);font-weight:900;font-style:italic;font-size:64px;letter-spacing:6px;color:#fff;margin-bottom:6px}
+  .po-box .btn{width:min(340px,90%)}
+  .po-keys{margin-top:14px;font-size:12px;line-height:2.1;color:var(--muted)}
+  .po-keys kbd{background:#1a2230;border:1px solid #2a3647;border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:#dfe6ee;font-family:var(--font);font-weight:700;font-size:11px}
+  /* menus get the display face too */
+  .fnm-logo,.fnm-item,.fntitle,.fnname,.logo,.po-t,.st-title,.fnvs,.fnovr b,.fnstatrow .lv,.fnstatrow .rv,.fnclass{font-family:var(--disp)}
+  .fnm-logo{font-size:min(64px,8vw);font-style:italic;letter-spacing:2px}
+  .fnm-item{font-size:min(38px,5vw);letter-spacing:2.5px;font-style:italic}
+  .fnm-art img.realport{position:absolute;right:6%;bottom:0;height:96%;width:auto;max-width:none;object-fit:cover;
+    -webkit-mask-image:linear-gradient(0deg,transparent 0%,#000 22%);mask-image:linear-gradient(0deg,transparent 0%,#000 22%);
+    filter:drop-shadow(-30px 10px 50px rgba(0,0,0,.7));animation:rise .9s both}
+  /* result screen v2 */
+  .res-hero{display:flex;align-items:center;justify-content:center;gap:22px;margin:4px 0 16px}
+  .res-hero .rp{width:150px;height:190px;border-radius:12px;overflow:hidden;border:2px solid var(--accent);
+    box-shadow:0 0 40px rgba(232,184,75,.25);background:#0a0d14;flex:0 0 auto}
+  .res-hero .rp img,.res-hero .rp svg{width:100%;height:100%;object-fit:cover;display:block}
+  .res-hero .rt{text-align:left}
+  .res-hero .rm{font-family:var(--disp);font-weight:900;font-style:italic;font-size:min(64px,11vw);line-height:.9;color:#fff;letter-spacing:2px}
+  .res-hero .rw{font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:2px;color:var(--accent);margin-top:6px}
+  .res-hero .rs{font-size:12px;letter-spacing:2px;color:var(--muted);font-weight:800;margin-top:4px}
+  .res-hero.lost .rp{border-color:#555;filter:grayscale(.6)}
+  .scoreboard{font-family:var(--disp);font-size:17px}
+  .scoreboard .big{font-size:30px}
+  /* live 3D stage behind the menus */
+  body.stage3d #scrTitle{background:linear-gradient(90deg,rgba(4,6,10,.94) 0%,rgba(4,6,10,.78) 30%,rgba(4,6,10,.15) 52%,transparent 70%,rgba(4,6,10,.35) 100%);
+    backdrop-filter:none;-webkit-backdrop-filter:none}
+  body.stage3d #scrTitle .fnm-art::after, body.stage3d #scrTitle .fnm-art::before{display:none}
+  body.stage3d #scrSelect{background:linear-gradient(0deg,rgba(4,6,10,.9) 0%,rgba(4,6,10,.35) 30%,transparent 55%,rgba(4,6,10,.55) 100%);
+    backdrop-filter:none;-webkit-backdrop-filter:none}
+  body.stage3d #scrSelect .fnport{background:none!important;border-color:transparent!important;box-shadow:none!important}
+  body.stage3d #scrSelect .fnport > *{display:none}
+  body.stage3d #scrSelect .fnmid{background:linear-gradient(180deg,rgba(6,9,14,.82),rgba(6,9,14,.6));border:1px solid #1f2a3a;border-radius:12px;padding:16px 14px 14px}
+  .reelcap{position:absolute;right:28px;bottom:58px;display:flex;align-items:center;gap:10px;font-family:var(--disp);
+    font-weight:800;font-size:13px;letter-spacing:3px;color:#cfd8e3;opacity:0;z-index:3;text-shadow:0 2px 10px #000}
+  .reelcap b{font-size:22px;letter-spacing:2px;color:#fff;font-style:italic;font-weight:900}
+  .reelcap .dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red);animation:liveblink 1.2s infinite}
+  .reelcap.on{animation:capIn 6s ease both}
+  @keyframes capIn{0%{opacity:0;transform:translateX(30px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:.0}}
+  .fnside.swap .fnname{animation:nameSwap .5s cubic-bezier(.2,.8,.3,1)}
+  @keyframes nameSwap{0%{opacity:0;transform:translateY(14px) scale(.96);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}
+  #fnTable.swap .fnstatrow{animation:rowSwap .45s ease both}
+  #fnTable.swap .fnstatrow:nth-child(2){animation-delay:.03s} #fnTable.swap .fnstatrow:nth-child(3){animation-delay:.06s}
+  #fnTable.swap .fnstatrow:nth-child(4){animation-delay:.09s} #fnTable.swap .fnstatrow:nth-child(5){animation-delay:.12s}
+  #fnTable.swap .fnstatrow:nth-child(6){animation-delay:.15s} #fnTable.swap .fnstatrow:nth-child(7){animation-delay:.18s}
+  #fnTable.swap .fnstatrow:nth-child(8){animation-delay:.21s}
+  @keyframes rowSwap{0%{opacity:0;transform:scaleX(.6)}100%{opacity:1;transform:none}}
   /* network bug + lower third */
   .bug{position:absolute;bottom:34px;right:18px;display:flex;align-items:center;gap:7px;
     font-weight:800;letter-spacing:1px;font-size:13px;color:#fff;opacity:.92}
@@ -400,14 +491,14 @@
   .fnm-art svg{position:absolute;right:-3%;bottom:-10%;height:130%;width:78%;
     filter:drop-shadow(-24px 6px 40px rgba(0,0,0,.7)) contrast(1.05)}
   .fnm-art::after{content:'';position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(90deg,#05070b 0%, rgba(5,7,11,.35) 26%, transparent 52%, transparent 78%, rgba(5,7,11,.55) 100%)}
+    background:linear-gradient(90deg,rgba(5,7,11,.7) 0%, rgba(5,7,11,.25) 22%, transparent 48%, transparent 80%, rgba(5,7,11,.55) 100%)}
   .fnm-art::before{content:'';position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(60% 50% at 64% 26%, rgba(240,199,90,.16), transparent 70%)}
   .fnm-foot{position:absolute;left:0;right:0;bottom:0;height:42px;display:flex;align-items:center;
     justify-content:space-between;padding:0 22px;background:linear-gradient(0deg,rgba(3,5,8,.92),transparent);
     font-size:12px;letter-spacing:2px;z-index:3}
   .fnm-brand{font-weight:900;color:#fff;letter-spacing:3px}
-  .fnm-brand.espn{color:#e0383b}
+  .fnm-brand.ver{color:var(--muted);font-weight:800}
   .fnm-keys{color:var(--muted);font-weight:800}
   @media(max-width:680px){ .fnm-art{opacity:.45} .fnmenu{grid-template-columns:1fr} }
 
@@ -558,9 +649,9 @@
 
   <div class="fnhud">
     <div class="fnside2 left" id="cardL">
-      <div class="fb hp"><i id="hpL"></i></div>
-      <div class="fb sta"><i id="stL"></i></div>
-      <div class="nmplate" id="nmL">—</div>
+      <div class="fb hp" id="hbL"><s class="ghost" id="hgL"></s><i id="hpL"></i><b class="cap" id="hcL"></b></div>
+      <div class="fb sta"><s class="ghost" id="sgL"></s><i id="stL"></i></div>
+      <div class="nmrow"><div class="nmplate" id="nmL">—</div><div class="kdots" id="kdL"></div><div class="hurttag">ANGESCHLAGEN</div></div>
     </div>
     <div class="fnhudmid">
       <div class="clkplate">
@@ -571,9 +662,9 @@
       <div class="kd" id="kdTag"></div>
     </div>
     <div class="fnside2 right" id="cardR">
-      <div class="fb hp"><i id="hpR"></i></div>
-      <div class="fb sta"><i id="stR"></i></div>
-      <div class="nmplate" id="nmR">—</div>
+      <div class="fb hp" id="hbR"><s class="ghost" id="hgR"></s><i id="hpR"></i><b class="cap" id="hcR"></b></div>
+      <div class="fb sta"><s class="ghost" id="sgR"></s><i id="stR"></i></div>
+      <div class="nmrow"><div class="nmplate" id="nmR">—</div><div class="kdots" id="kdR"></div><div class="hurttag">ANGESCHLAGEN</div></div>
     </div>
   </div>
 
@@ -587,6 +678,11 @@
   <div class="callout" id="callout"></div>
 </div>
 
+<div id="stunFx"></div>
+<div id="pauseOv"><div class="po-box"><div class="po-t">PAUSE</div>
+  <button class="btn primary" id="poResume">Weiter kämpfen</button>
+  <button class="btn" id="poMenu">Kampf aufgeben · Hauptmenü</button>
+  <div class="po-keys"><kbd>D</kbd> vor · <kbd>A</kbd> zurück · <kbd>W</kbd><kbd>S</kbd> seitlich · <kbd>↑</kbd> Jab · <kbd>←</kbd><kbd>→</kbd> Haken · <kbd>←/→</kbd>+<kbd>↑</kbd> Uppercut · <kbd>←/→</kbd>+<kbd>↓</kbd> Körper · <kbd>Leertaste</kbd> Block · <kbd>Shift</kbd> Ausweichen · <kbd>E</kbd> Clinch</div></div></div>
 <div id="count"><div class="n" id="countN">10</div><div class="t">BOX!</div>
   <div id="getup"><div class="gu-lab">HÄMMERE ← ↑ ↓ → / LEERTASTE — STEH AUF!</div>
     <div class="gu-bar"><i id="guFill"></i></div></div></div>
@@ -595,7 +691,7 @@
 <div class="screen" id="scrTitle">
   <div class="fnmenu">
     <div class="fnm-left">
-      <div class="fnm-crest">EA · LEGACY BOXING</div>
+      <div class="fnm-crest">LEGACY BOXING</div>
       <div class="fnm-logo">FIGHT NIGHT<span>LEGACY</span></div>
       <nav class="fnm-list">
         <button class="fnm-item active" id="btnStart">FIGHT NOW</button>
@@ -609,11 +705,12 @@
       <div class="fnm-note" id="menuNote"></div>
     </div>
     <div class="fnm-art" id="menuArt"></div>
+    <div class="reelcap" id="reelCap"></div>
   </div>
   <div class="fnm-foot">
-    <span class="fnm-brand">EA SPORTS</span>
+    <span class="fnm-brand">LEGACY BOXING</span>
     <span class="fnm-keys">⏎ / KLICK — AUSWÄHLEN</span>
-    <span class="fnm-brand espn">ESPN</span>
+    <span class="fnm-brand ver">v1.2</span>
   </div>
 </div>
 
@@ -689,11 +786,11 @@
 <!-- RESULT / DOC -->
 <div class="screen hidden" id="scrResult">
   <div class="result">
-    <div class="logo" id="resTitle" style="font-size:34px;letter-spacing:4px">ERGEBNIS</div>
-    <div class="winrow"><div id="resWin" style="font-size:18px;letter-spacing:2px;color:var(--accent);font-weight:800"></div></div>
+    <div class="res-hero" id="resHero"><div class="rp" id="resPort"></div><div class="rt">
+      <div class="rm" id="resTitle">ERGEBNIS</div><div class="rw" id="resWin"></div><div class="rs" id="resSub"></div></div></div>
     <div class="scoreboard" id="scoreboard"></div>
     <div class="doc">
-      <h3>◢ Netflix-Doku · „Die Nacht in <span id="docArena">der Arena</span>“</h3>
+      <h3>◢ Kampf-Doku · „Die Nacht in <span id="docArena">der Arena</span>“</h3>
       <div id="docList"></div>
     </div>
     <div class="row">
@@ -842,14 +939,28 @@ const FIGHTERS = [
 ];
 
 const ARENAS = [
+  // an old club hall: brick walls, a cream canvas, red ropes, warm bare lamps over the ring, smoke in the air
   {id:'hall',  name:'Community Hall',     cap:'500 Zuschauer',     crowd:600,   tiers:5,  rad:8,
-   c1:'#22262e',c2:'#0c0e12', fog:0.030, key:0xfff0d8, keyI:1.0, rim:0x2a3a5a, amb:0.10, floor:0x171a1f},
+   c1:'#4a2a20',c2:'#120c09', fog:0.034, key:0xffc887, keyI:1.05, rim:0x6a3a1c, amb:0.12, floor:0x2a1d13,
+   th:{canvas:['#ddd5c2','#cbc1a8','#9d9279'], ink:'rgba(120,24,24,0.85)', inkSub:'rgba(60,40,30,0.8)', side:'rgba(110,30,30,0.45)', dark:'40,26,16',
+       apron:['#6a1a16','#2c0a08'], apronInk:'#f3e7d3', ropes:[0xe6dfcf,0xb3241f,0xb3241f,0xe6dfcf], pads:[0xb3241f,0x1d3f8a,0xb3241f,0x1d3f8a],
+       wall:'brick', rig:'lamps', jumbo:false, band:0x5a2a10}},
+  // a modern regional venue: steel and concrete, grey canvas, white ropes, cool LED light, a teal band
   {id:'region',name:'Regional Arena',     cap:'4.000 Zuschauer',   crowd:2400,  tiers:9,  rad:11,
-   c1:'#272b34',c2:'#0a0c10', fog:0.024, key:0xffe9c4, keyI:1.15, rim:0x3457a8, amb:0.09, floor:0x14171c},
+   c1:'#2b3038',c2:'#0a0c10', fog:0.022, key:0xeaf2ff, keyI:1.2, rim:0x18b3a5, amb:0.09, floor:0x15181c,
+   th:{canvas:['#9aa2ad','#7d8691','#4f5661'], ink:'rgba(250,252,255,0.9)', inkSub:'rgba(24,180,165,0.95)', side:'rgba(255,255,255,0.45)', dark:'20,26,34',
+       apron:['#1d2733','#0c1219'], apronInk:'#e9f2f7', ropes:[0xf2f4f6,0xf2f4f6,0xf2f4f6,0xf2f4f6], pads:[0x22272f,0x22272f,0x22272f,0x22272f],
+       wall:'panels', rig:'truss', jumbo:true, jumboScale:0.75, band:0x18b3a5}},
+  // the TV fight: blue canvas, red-white-blue ropes, the big screen
   {id:'grand', name:'Grand Arena',        cap:'20.000 Zuschauer',  crowd:5200,  tiers:14, rad:15,
-   c1:'#2a2f3a',c2:'#070a0e', fog:0.018, key:0xfff2da, keyI:1.3, rim:0x2f6bff, amb:0.07, floor:0x101317},
+   c1:'#2a2f3a',c2:'#070a0e', fog:0.018, key:0xfff2da, keyI:1.3, rim:0x2f6bff, amb:0.07, floor:0x101317,
+   th:{rig:'truss', jumbo:true}},
+  // the title-fight stadium: black and gold canvas, gold ropes, purple LED rings round the stands, a giant screen
   {id:'kingdom',name:'Kingdom MegaDome',  cap:'60.000 · Titelkampf',crowd:8000, tiers:20, rad:20,
-   c1:'#2f2a3a',c2:'#05060a', fog:0.013, key:0xffefce, keyI:1.45, rim:0xff9b2f, amb:0.06, floor:0x0c0e12},
+   c1:'#241c33',c2:'#05040a', fog:0.012, key:0xfff1d6, keyI:1.5, rim:0x9b4dff, amb:0.06, floor:0x0b0a10,
+   th:{canvas:['#2a2a30','#1c1c21','#0d0d10'], ink:'rgba(232,184,75,0.95)', inkSub:'rgba(255,240,200,0.95)', side:'rgba(232,184,75,0.5)', dark:'0,0,0',
+       apron:['#16121f','#07050c'], apronInk:'#e8b84b', ropes:[0xe8b84b,0xf4efe2,0xf4efe2,0xe8b84b], pads:[0xe8b84b,0xe8b84b,0xe8b84b,0xe8b84b],
+       wall:'panels', rig:'truss', jumbo:true, jumboScale:1.45, led:[0x9b4dff,0xe8b84b], band:0x9b4dff}},
 ];
 
 /* punch stats: arm 0=lead(left) 1=rear(right); power/stam/stun feed the damage model */
@@ -962,7 +1073,7 @@ const Audio = (()=> {
   }
   function resume(){ if(ctx&&ctx.state==='suspended') ctx.resume(); }
   function crowd(level){ if(crowdGain) crowdGain.gain.setTargetAtTime(0.03+level*0.16, ctx.currentTime, 0.4); }
-  function swell(amt=1){ if(!ready)return; crowdGain.gain.setTargetAtTime(0.05+0.28*amt,ctx.currentTime,0.05);
+  function swell(amt=1){ if(!ready||G.reelMode)return; crowdGain.gain.setTargetAtTime(0.05+0.28*amt,ctx.currentTime,0.05);
     crowdGain.gain.setTargetAtTime(0.07,ctx.currentTime+0.25,0.6); }
   // short noise buffers, made once
   let NB=null; function noise(len){ NB=NB||{}; if(NB[len]) return NB[len];
@@ -976,7 +1087,7 @@ const Audio = (()=> {
   // thump (low, felt more than heard). Head shots crack, body shots thud deep and muffled, a blocked shot is a
   // dull glove-on-glove pop. Every hit is detuned a little so a combo never sounds like a loop.
   function hit(power=1, kind='head'){
-    if(!ready) return; const t=ctx.currentTime, j=0.85+Math.random()*0.3, P=Math.min(1.5,power);
+    if(!ready||G.reelMode) return; const t=ctx.currentTime, j=0.85+Math.random()*0.3, P=Math.min(1.5,power);
     if(kind==='block'){ burst(t,0.08,'bandpass',900*j,1.2,0.22*P,0.07); burst(t,0.05,'highpass',3000,0.7,0.05*P,0.03); return; }
     const body=kind==='body';
     burst(t,0.06,'highpass',body?1800:2600*j,0.8,(body?0.10:0.22)*P,body?0.035:0.05);       // leather slap
@@ -987,12 +1098,17 @@ const Audio = (()=> {
     o.connect(g); g.connect(master); o.start(t); o.stop(t+0.26);
     if(P>1.0 && !body) burst(t+0.01,0.25,'lowpass',260,0.7,0.25*(P-0.9),0.22);               // a big one booms in the arena
   }
-  function whoosh(power=0.6){ if(!ready) return; const t=ctx.currentTime, s=ctx.createBufferSource(); s.buffer=noise(0.3);
+  function heart(v=0.5){ if(!ready||G.reelMode) return; const t0=ctx.currentTime;
+    for(const [dt,a] of [[0,1],[0.17,0.7]]){ const t=t0+dt, o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(62,t); o.frequency.exponentialRampToValueAtTime(38,t+0.12);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.5*v*a,t+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t+0.18); } }
+  function whoosh(power=0.6){ if(!ready||G.reelMode) return; const t=ctx.currentTime, s=ctx.createBufferSource(); s.buffer=noise(0.3);
     const f=ctx.createBiquadFilter(); f.type='bandpass'; f.Q.value=2.2; f.frequency.setValueAtTime(500,t); f.frequency.exponentialRampToValueAtTime(1700,t+0.12);
     const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09*power,t+0.05); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
     s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+0.3); }
   // the crowd 'OOOH' — a vowel formed from many voices (formant-filtered noise sliding down)
-  function ooh(amt=1){ if(!ready) return; const t=ctx.currentTime, s=ctx.createBufferSource(); s.buffer=noise(1.6);
+  function ooh(amt=1){ if(!ready||G.reelMode) return; const t=ctx.currentTime, s=ctx.createBufferSource(); s.buffer=noise(1.6);
     const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.16*amt,t+0.12); g.gain.exponentialRampToValueAtTime(0.0001,t+1.4);
     for(const [fr,q,v] of [[420,7,1],[820,8,0.6],[2500,6,0.2]]){ const f=ctx.createBiquadFilter(); f.type='bandpass'; f.Q.value=q;
       f.frequency.setValueAtTime(fr*1.1,t); f.frequency.exponentialRampToValueAtTime(fr*0.85,t+1.3); const gv=ctx.createGain(); gv.gain.value=v;
@@ -1011,7 +1127,7 @@ const Audio = (()=> {
   }
   if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=()=>{ voice=pickVoice(); };
   function thud(power=1, miss=false){
-    if(!ready)return; const t=ctx.currentTime;
+    if(!ready||G.reelMode)return; const t=ctx.currentTime;
     // low body of the impact
     const o=ctx.createOscillator(), g=ctx.createGain();
     o.type='sine'; o.frequency.setValueAtTime(miss?150:90,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12);
@@ -1026,7 +1142,7 @@ const Audio = (()=> {
   }
   // fighter vocalisation — a short exhale/grunt (body shots = a deeper 'oof', effort punches = a sharp 'huh')
   function grunt(power=0.6, low=false){
-    if(!ready)return; const t=ctx.currentTime;
+    if(!ready||G.reelMode)return; const t=ctx.currentTime;
     const base=(low?95:155)*(0.88+Math.random()*0.28);
     const o=ctx.createOscillator(), o2=ctx.createOscillator(), g=ctx.createGain(), bp=ctx.createBiquadFilter();
     o.type='sawtooth'; o2.type='sawtooth'; o.frequency.setValueAtTime(base,t); o2.frequency.setValueAtTime(base*1.5,t);
@@ -1041,7 +1157,7 @@ const Audio = (()=> {
     const ng=ctx.createGain(); ng.gain.value=0.07*power; ns.connect(nf); nf.connect(ng); ng.connect(master); ns.start(t);
   }
   // the crowd erupts — knockdowns / big moments
-  function roar(amt=1){ if(!ready)return; const t=ctx.currentTime;
+  function roar(amt=1){ if(!ready||G.reelMode)return; const t=ctx.currentTime;
     crowdGain.gain.cancelScheduledValues(t); crowdGain.gain.setValueAtTime(crowdGain.gain.value,t);
     crowdGain.gain.linearRampToValueAtTime(0.06+0.55*amt,t+0.08);
     crowdGain.gain.setTargetAtTime(0.12,t+0.6,1.4); }
@@ -1056,7 +1172,7 @@ const Audio = (()=> {
       t+=0.42;
     }
   }
-  return {init,resume,crowd,swell,thud,bell,grunt,roar,hit,whoosh,ooh,announce, get ready(){return ready;}};
+  return {init,resume,crowd,swell,thud,bell,grunt,roar,hit,whoosh,ooh,announce,heart, get ready(){return ready;}};
 })();
 
 /* =============================== SCENE ==================================== */
@@ -1562,10 +1678,11 @@ function buildArena(A){
   const fill=new THREE.DirectionalLight(0x6c84b0,0.25); fill.position.set(4,8,8); arenaGroup.add(fill);
 
   buildStands(arenaGroup, A);
-  buildRing(arenaGroup);
+  buildRing(arenaGroup, A);
   buildCrowd(arenaGroup, A);
   buildRig(arenaGroup, A);
   buildJumbotron(arenaGroup, A);
+  if(A.th && A.th.led) buildLED(arenaGroup, A);
   buildStools(arenaGroup);   // corner stools (shown only during the between-round break)
 }
 // diagonally-opposite corners; fighters retreat here between rounds and walk in from here at the start
@@ -1615,12 +1732,13 @@ function buildStands(parent, A){
   front.position.y=BOWL_Y0; parent.add(front);
   // outer perimeter wall closing off the top of the bowl
   const wallR=inner+tiers*STEP_W+0.4;
+  const th=A.th||{};
   const wall=new THREE.Mesh(new THREE.CylinderGeometry(wallR, wallR, tiers*STEP_H+3.4, 80, 1, true),
-    new THREE.MeshStandardMaterial({color:A.c1, roughness:0.92, metalness:0, side:THREE.BackSide}));
+    new THREE.MeshStandardMaterial({color:th.wall? 0xffffff : A.c1, map:th.wall? wallTex(th.wall, A) : null, roughness:0.92, metalness:0, side:THREE.BackSide}));
   wall.position.y=(tiers*STEP_H)/2+0.7; parent.add(wall);
   // glowing sponsor band on the inner front
   const band=new THREE.Mesh(new THREE.CylinderGeometry(inner-0.3, inner-0.3, 0.5, 80, 1, true),
-    new THREE.MeshStandardMaterial({color:0x0b1422, emissive:A.rim, emissiveIntensity:0.7,
+    new THREE.MeshStandardMaterial({color:0x0b1422, emissive:th.band??A.rim, emissiveIntensity:0.7,
       roughness:0.5, side:THREE.BackSide}));
   band.position.y=0.55; parent.add(band);
   // dark ringside barrier boards around the apron
@@ -1632,8 +1750,49 @@ function buildStands(parent, A){
   }
 }
 
+// wall textures: old brick for the club hall, lit acoustic panels for the modern venues
+function wallTex(kind, A){
+  const c=document.createElement('canvas'); c.width=1024; c.height=256; const x=c.getContext('2d');
+  if(kind==='brick'){
+    x.fillStyle='#2a1610'; x.fillRect(0,0,1024,256);
+    for(let row=0;row<16;row++){ const y=row*16, off=(row%2)*20;
+      for(let col=-1;col<26;col++){ const r=90+Math.random()*50, g=40+Math.random()*22, b=28+Math.random()*16;
+        x.fillStyle=`rgb(${r|0},${g|0},${b|0})`; x.fillRect(col*40+off+1, y+1, 38, 14); } }
+    for(let i=0;i<6;i++){ x.fillStyle=`rgba(255,240,200,${0.06+Math.random()*0.05})`; x.fillRect(Math.random()*1000, 60+Math.random()*120, 70, 46); }   // old posters
+  } else {
+    const base=A.c1; x.fillStyle=base; x.fillRect(0,0,1024,256);
+    for(let col=0;col<32;col++){ x.fillStyle=`rgba(255,255,255,${0.02+Math.random()*0.03})`; x.fillRect(col*32+1,0,30,256);
+      x.fillStyle='rgba(0,0,0,0.35)'; x.fillRect(col*32,0,1,256); }
+    const rim='#'+new THREE.Color(A.rim).getHexString(); x.fillStyle=rim; x.globalAlpha=0.55; x.fillRect(0,118,1024,5); x.globalAlpha=1;
+  }
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=THREE.RepeatWrapping; t.repeat.set(kind==='brick'?6:4,1); return t;
+}
+// the club hall has no truss: four warm lamp shades hang low over the ring, the smoke glowing under them
+function buildLamps(parent, A){
+  const shadeMat=new THREE.MeshStandardMaterial({color:0x1d2a22, metalness:0.5, roughness:0.45, side:THREE.DoubleSide});
+  const bulbMat=new THREE.MeshBasicMaterial({color:0xffd9a0});
+  const glowMat=new THREE.MeshBasicMaterial({color:0xffb766, transparent:true, opacity:0.07, blending:THREE.AdditiveBlending, depthWrite:false, fog:false});
+  for(const [x,z] of [[-1.4,-1.4],[1.4,-1.4],[1.4,1.4],[-1.4,1.4]]){
+    const y=6.2;
+    const cord=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,4,4), shadeMat); cord.position.set(x,y+2,z); parent.add(cord);
+    const shade=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.42,20,1,true), shadeMat); shade.position.set(x,y,z); parent.add(shade);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.11,12,8), bulbMat); bulb.position.set(x,y-0.16,z); parent.add(bulb);
+    if(!isLowGfx()){ const cone=new THREE.Mesh(new THREE.ConeGeometry(1.6,4.6,20,1,true), glowMat); cone.position.set(x,y-2.5,z); parent.add(cone); }
+    const pl=new THREE.PointLight(0xffc887, 9, 9, 1.6); pl.position.set(x,y-0.3,z); parent.add(pl);
+  }
+}
+// the stadium: glowing LED rings around the bowl
+function buildLED(parent, A){
+  const cols=A.th.led, inner=A.rad*0.7;
+  for(let i=0;i<4;i++){ const r=inner+ (i+1)*A.tiers*STEP_W/4.2, y=BOWL_Y0+(i+1)*A.tiers*STEP_H/4.2+0.3;
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(r,0.06,6,120), new THREE.MeshBasicMaterial({color:cols[i%cols.length], fog:false}));
+    ring.rotation.x=Math.PI/2; ring.position.y=y; parent.add(ring); }
+  const top=new THREE.Mesh(new THREE.TorusGeometry(inner+A.tiers*STEP_W+0.2,0.14,6,140), new THREE.MeshBasicMaterial({color:cols[0], fog:false}));
+  top.rotation.x=Math.PI/2; top.position.y=A.tiers*STEP_H+2.2; parent.add(top);
+}
 // Overhead lighting truss + hanging spotlight cans
 function buildRig(parent, A){
+  if(A.th && A.th.rig==='lamps') return buildLamps(parent, A);
   const trussMat=new THREE.MeshStandardMaterial({color:0x14161b, metalness:0.6, roughness:0.5});
   const beamY=11.5, span=6.2;
   // square truss frame above the ring
@@ -1673,7 +1832,8 @@ function buildRig(parent, A){
 
 // Big four-sided jumbotron hanging over the ring
 function buildJumbotron(parent, A){
-  const jt=new THREE.Group(); jt.position.y=9.2; parent.add(jt);
+  if(A.th && A.th.jumbo===false){ jumboScreens=null; return; }
+  const jt=new THREE.Group(); jt.position.y=9.2; jt.scale.setScalar((A.th&&A.th.jumboScale)||1); parent.add(jt);
   // hang cables
   const cableMat=new THREE.MeshStandardMaterial({color:0x0a0b0e, metalness:0.5, roughness:0.6});
   for(const c of [[-1.3,-1.3],[1.3,-1.3],[1.3,1.3],[-1.3,1.3]]){
@@ -1700,12 +1860,13 @@ function buildJumbotron(parent, A){
 }
 
 // procedural worn ring canvas: base tone + grime noise + scuff streaks + faded blood spots + darkened edges
-function makeCanvasTex(){
+function makeCanvasTex(A){
+  const th=(A&&A.th)||{}, cv=th.canvas||['#4f93c6','#3274a8','#1d4c78'];
   // broadcast-style BLUE canvas (like the Fight Night look): deep blue edges, lighter worked centre,
   // a big centre emblem + sponsor lettering, fabric grain, boot scuffs and a few faded stains
   const s=isLowGfx()?1024:2048, c=document.createElement('canvas'); c.width=c.height=s; const x=c.getContext('2d');
   const bg=x.createRadialGradient(s/2,s/2,s*0.05,s/2,s/2,s*0.72);
-  bg.addColorStop(0,'#4f93c6'); bg.addColorStop(0.55,'#3274a8'); bg.addColorStop(1,'#1d4c78');
+  bg.addColorStop(0,cv[0]); bg.addColorStop(0.55,cv[1]); bg.addColorStop(1,cv[2]);
   x.fillStyle=bg; x.fillRect(0,0,s,s);
   for(let i=0;i<s*9;i++){ const v=Math.random();                                   // woven fabric grain
     x.fillStyle=v<0.5?`rgba(255,255,255,${0.02+Math.random()*0.04})`:`rgba(0,20,45,${0.03+Math.random()*0.05})`;
@@ -1713,28 +1874,28 @@ function makeCanvasTex(){
   // centre emblem
   const R=s*0.17; x.save(); x.translate(s/2,s/2);
   x.fillStyle='rgba(255,255,255,0.10)'; x.beginPath(); x.arc(0,0,R*1.35,0,Math.PI*2); x.fill();
-  x.lineWidth=s*0.012; x.strokeStyle='rgba(235,244,255,0.85)'; x.beginPath(); x.arc(0,0,R*1.18,0,Math.PI*2); x.stroke();
+  x.lineWidth=s*0.012; x.strokeStyle=th.ink||'rgba(235,244,255,0.85)'; x.beginPath(); x.arc(0,0,R*1.18,0,Math.PI*2); x.stroke();
   x.lineWidth=s*0.004; x.beginPath(); x.arc(0,0,R*1.06,0,Math.PI*2); x.stroke();
-  x.fillStyle='rgba(240,247,255,0.92)'; x.textAlign='center'; x.textBaseline='middle';
+  x.fillStyle=th.ink||'rgba(240,247,255,0.92)'; x.textAlign='center'; x.textBaseline='middle';
   x.font=`italic 900 ${Math.round(R*0.42)}px Arial Black, Arial, sans-serif`; x.fillText('FIGHT', 0, -R*0.25);
   x.fillText('NIGHT', 0, R*0.22);
-  x.font=`800 ${Math.round(R*0.17)}px Arial, sans-serif`; x.fillStyle='rgba(255,214,90,0.95)'; x.fillText('L E G A C Y', 0, R*0.68);
+  x.font=`800 ${Math.round(R*0.17)}px Arial, sans-serif`; x.fillStyle=th.inkSub||'rgba(255,214,90,0.95)'; x.fillText('L E G A C Y', 0, R*0.68);
   x.restore();
   // sponsor lettering along all four sides (reads from outside the ring)
-  x.fillStyle='rgba(225,238,255,0.55)'; x.textAlign='center'; x.textBaseline='middle';
+  x.fillStyle=th.side||'rgba(225,238,255,0.55)'; x.textAlign='center'; x.textBaseline='middle';
   x.font=`italic 900 ${Math.round(s*0.05)}px Arial Black, Arial, sans-serif`;
   for(let k=0;k<4;k++){ x.save(); x.translate(s/2,s/2); x.rotate(k*Math.PI/2); x.fillText('FN24  ·  LEGACY  ·  FN24', 0, s*0.40); x.restore(); }
   x.lineCap='round';
   for(let i=0;i<40;i++){ const a=Math.random()*Math.PI*2, r=Math.random()*s*0.42;    // boot scuff streaks
     const cx=s/2+Math.cos(a)*r, cy=s/2+Math.sin(a)*r, L=s*(0.02+Math.random()*0.09);
-    x.strokeStyle=`rgba(8,28,52,${0.06+Math.random()*0.12})`; x.lineWidth=s*(0.002+Math.random()*0.006);
+    x.strokeStyle=`rgba(${th.dark||'8,28,52'},${0.06+Math.random()*0.12})`; x.lineWidth=s*(0.002+Math.random()*0.006);
     x.beginPath(); x.moveTo(cx,cy); x.lineTo(cx+Math.cos(a+1)*L, cy+Math.sin(a+1)*L); x.stroke(); }
   for(let i=0;i<7;i++){ const cx=s*0.5+(Math.random()-0.5)*s*0.6, cy=s*0.5+(Math.random()-0.5)*s*0.6;  // faded blood
     const rr=s*(0.005+Math.random()*0.014), gr=x.createRadialGradient(cx,cy,0,cx,cy,rr);
     gr.addColorStop(0,`rgba(90,16,30,${0.18+Math.random()*0.18})`); gr.addColorStop(1,'rgba(90,16,30,0)');
     x.fillStyle=gr; x.beginPath(); x.arc(cx,cy,rr,0,Math.PI*2); x.fill(); }
   const eg=x.createRadialGradient(s/2,s/2,s*0.34,s/2,s/2,s*0.74);                   // darker, less-lit edges
-  eg.addColorStop(0,'rgba(0,0,0,0)'); eg.addColorStop(1,'rgba(4,14,30,0.42)');
+  eg.addColorStop(0,'rgba(0,0,0,0)'); eg.addColorStop(1,`rgba(${th.dark||'4,14,30'},0.42)`);
   x.fillStyle=eg; x.fillRect(0,0,s,s);
   const t=new THREE.CanvasTexture(c); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t;
 }
@@ -1761,8 +1922,8 @@ function updateRopes(dt){
       R.vel[i]+=a*dt; R.disp[i]+=R.vel[i]*dt; if(Math.abs(R.vel[i])>1e-4||Math.abs(R.disp[i])>1e-4) moved=true; }
     if(moved || R.dirty){ R.mesh.geometry.dispose(); R.mesh.geometry=ropeGeo(R); R.dirty=moved; } }
 }
-function buildRing(parent){
-  ringRopes=[];
+function buildRing(parent, A){
+  ringRopes=[]; const th=(A&&A.th)||{};
   const RING=2.95;               // half-size of canvas (inside ropes ~2.6 movement)
   const matH=1.0;                // canvas top height
   // apron / base
@@ -1775,8 +1936,9 @@ function buildRing(parent){
   skirt.position.y=0.32; parent.add(skirt);
   { // printed apron: sponsor lettering on all four sides
     const c=document.createElement('canvas'); c.width=1024; c.height=96; const x=c.getContext('2d');
-    const g=x.createLinearGradient(0,0,0,96); g.addColorStop(0,'#173a66'); g.addColorStop(1,'#0b1d36'); x.fillStyle=g; x.fillRect(0,0,1024,96);
-    x.fillStyle='#e8eef7'; x.font='italic 900 46px Arial Black, Arial'; x.textBaseline='middle'; x.textAlign='center';
+    const ap=th.apron||['#173a66','#0b1d36'];
+    const g=x.createLinearGradient(0,0,0,96); g.addColorStop(0,ap[0]); g.addColorStop(1,ap[1]); x.fillStyle=g; x.fillRect(0,0,1024,96);
+    x.fillStyle=th.apronInk||'#e8eef7'; x.font='italic 900 46px Arial Black, Arial'; x.textBaseline='middle'; x.textAlign='center';
     x.fillText('FIGHT NIGHT', 260, 50); x.fillStyle='#f2c44e'; x.fillText('LEGACY', 600, 50); x.fillStyle='#e8eef7'; x.font='900 40px Arial'; x.fillText('FN24', 880, 50);
     x.fillStyle='rgba(255,255,255,0.35)'; x.fillRect(0,4,1024,3); x.fillRect(0,89,1024,3);
     const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8;
@@ -1784,11 +1946,11 @@ function buildRing(parent){
   }
   // canvas — procedurally worn: dirt, scuff streaks, faint old blood stains (a used ring, not a showroom one)
   const canvas=new THREE.Mesh(new THREE.BoxGeometry(RING*2, 0.06, RING*2),
-    new THREE.MeshStandardMaterial({map:makeCanvasTex(), roughness:0.86, metalness:0}));
+    new THREE.MeshStandardMaterial({map:makeCanvasTex(A), roughness:0.86, metalness:0}));
   canvas.position.y=matH+0.03; canvas.receiveShadow=true; parent.add(canvas);
   // posts + ropes
   const postMat=new THREE.MeshStandardMaterial({color:0x161a20, metalness:0.4, roughness:0.5});
-  const padMat=[0xe0383b,0x2f7dff,0xe0383b,0x2f7dff].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.7}));
+  const padMat=(th.pads||[0xe0383b,0x2f7dff,0xe0383b,0x2f7dff]).map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.7}));
   const corners=[[1,1],[1,-1],[-1,-1],[-1,1]];
   const posts=[];
   corners.forEach((c,i)=>{
@@ -1799,10 +1961,8 @@ function buildRing(parent){
     pad.position.set(x,matH+0.5,z); parent.add(pad);
     posts.push([x,z]);
   });
-  const ropeMat=[new THREE.MeshStandardMaterial({color:0xf4f6fb,roughness:0.6}),
-                 new THREE.MeshStandardMaterial({color:0xe0383b,roughness:0.6}),
-                 new THREE.MeshStandardMaterial({color:0x2f7dff,roughness:0.6}),
-                 new THREE.MeshStandardMaterial({color:0xf4f6fb,roughness:0.6})];
+  const ropeMat=(th.ropes||[0xf4f6fb,0xe0383b,0x2f7dff,0xf4f6fb]).map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.55,
+    metalness:(c===0xe8b84b?0.6:0)}));
   const heights=[0.45,0.85,1.25,1.62];
   for(let h=0;h<heights.length;h++){
     for(let s=0;s<4;s++){
@@ -2037,6 +2197,7 @@ class Boxer{
     this.vel=new THREE.Vector3();
     // combat state
     this.headHP=100; this.bodyHP=100; this.stamina=100; this.stun=0; this.balance=100;
+    this.headMax=100; this.bodyMax=100; this._hitT=9; this._grace=0;   // FNC: health ceiling + time since last hit + post-KD second wind
     this.momentum=50; this.threwZone={head:0, body:0};   // #7 momentum swing + #2 which zone this fighter attacks
     this.dmgZone={lEye:0, rEye:0, nose:0, body:0, lHand:0, rHand:0};   // #3 localized damage (0..1 severity per region)
     this.blocking=false; this.slip=0; this.slipT=0; this.duckT=0; this.duckDrop=0;
@@ -2356,6 +2517,13 @@ class Boxer{
       if(G.state==='fight') this.sweat=clamp(this.sweat + dt*0.0042*(1 + (100-this.stamina)/80 + (this.punch?1:0)), 0, 1);
       if(this.sitting) this.sweat=Math.max(0.12, this.sweat-dt*0.03);                                  // towel in the corner
       this.stun=clamp(this.stun - dt*13, 0,100);
+      // RECOVERY (like Fight Night Champion): out of trouble for a moment, health climbs back toward its ceiling.
+      // Fresh legs recover faster; a man who keeps eating shots never gets the chance.
+      this._hitT=(this._hitT||0)+dt; if(this._grace>0) this._grace-=dt;
+      if(!this.down && (G.state==='fight'||G.state==='knockdown') && this._hitT>1.6){
+        const r=(1.3 + 1.6*clamp(this.stamina/100,0,1)) * (this.punch? 0.5 : 1);
+        this.headHP=Math.min(this.headMax??100, this.headHP + r*dt);
+        this.bodyHP=Math.min(this.bodyMax??100, this.bodyHP + r*0.55*dt); }
       this.momentum += (50-this.momentum)*clamp(dt*0.12,0,1);   // momentum bleeds back to neutral if you stop landing
       this.balance=clamp(this.balance + dt*40,0,100);
       this.headRecoil.multiplyScalar(Math.max(0,1-dt*7));
@@ -2603,7 +2771,7 @@ class Boxer{
     // momentum, overshoots a touch and settles — mass, not a puppet. Punches use a stiff, well-damped spring;
     // hit reactions a loose one (the head and torso wobble back); KO a heavy, dead one.
     const ikOn = !this.down && !this.celebrate && !this.sitting;
-    const om = this.punch?30 : (this.celebrate?14 : (this.down?8 : (this.reaction?12:14)));
+    const om = this.punch?30 : (this.celebrate?14 : (this.down?34 : (this.reaction?12:14)));
     const ze = this.punch?0.88 : (this.reaction?0.5 : (this.down?1.0 : 0.7));
     const jv=this._jv||(this._jv={}), nsub= dt>0.02? 3 : 1, h=dt/nsub, wrap=a=>a-Math.PI*2*Math.round(a/(Math.PI*2));
     for(const name in r){ const j=this.j[name]; if(!j) continue; const t=r[name], v=jv[name]||(jv[name]=[0,0,0]);
@@ -2781,6 +2949,7 @@ class Boxer{
       else { ph.vx=(along<0?-1:1)*rand(0.8,2.1)*pw*Math.max(0.4,Math.abs(along)); ph.vz=k.dir*rand(0.2,1.7)*pw;
         if(R()<0.16){ ph.vx=rand(0.3,0.8); ph.vz*=0.5; } }                                           // out cold, pitches face-first
       if(ph.stag){ ph.vx*=0.35; ph.vz*=0.35; }
+      ph.spin = k.body? rand(-0.3,0.3) : k.dir*rand(0.2,1.5)*(Math.abs(ph.vz)>0.6?1:0.5);   // a hook spins him on the way down
       k.style = Math.abs(ph.vz)>Math.abs(ph.vx)*1.1? 'side' : ph.vx<0? 'back' : 'front';
       k.ph=ph; }
     const ph=k.ph;
@@ -2794,6 +2963,7 @@ class Boxer{
         ph.vx+=g*ph.ax*dt*live; ph.vz+=g*ph.az*dt*live; }
       const pax=ph.ax, paz=ph.az;
       ph.ax+=ph.vx*dt*live; ph.az+=ph.vz*dt*live;
+      if(!ph.landed) this.facing+=ph.spin*dt*live; else ph.spin*=Math.exp(-dt*6);
       // the ropes catch a man falling out of the ring: he is left draped over them
       const hd=new THREE.Vector3(0,1.7,0).applyQuaternion(koLeanQ(ph.ax,ph.az,new THREE.Quaternion())).applyAxisAngle(_Yax, this._yaw??this.facing);
       const lim=G.ringHalf+0.5;
@@ -2812,17 +2982,39 @@ class Boxer{
     const Ln=Math.hypot(ph.ax,ph.az);
     const buckle=clamp((t-ph.delay*0.6)/0.3,0,1), fall=clamp(Ln/1.5,0,1), fe=fall, sp=ph.landed? clamp((t-0.25)/0.45,0,1)*fall : fall*0.35;
     // where the limbs end up depends on how he lands (limp arms flop onto the canvas, never into the air)
-    const E0={ back:{ax:0.07,az:0.9,el:-0.3,tl:-0.65,tr:-0.95,kl:0.65,kr:1.25},
+    const E0={ back:{ax:0.07,az:0.9,el:-0.3,tl:-0.35,tr:-0.55,kl:0.7,kr:1.1},
               side:{ax:-1.15,az:0.15,el:-0.7,tl:-0.9,tr:-0.55,kl:0.95,kr:0.6},
               front:{ax:-0.55,az:1.05,el:-0.6,tl:-0.04,tr:-0.08,kl:0.12,kr:0.2} }[k.style], V=ph.vary;
     const E={ ax:E0.ax*V[0], az:E0.az*V[1], el:E0.el*V[0], tl:E0.tl*V[2], tr:E0.tr*V[3], kl:E0.kl*V[3], kr:E0.kr*V[2] };
-    r.shL=[lerp(-0.25,E.ax,sp), 0.2*(1-sp), lerp(0.35,-E.az,sp)]; r.elL=[lerp(-0.8,E.el,sp),0,0];
-    r.shR=[lerp(-0.25,E.ax,sp),-0.2*(1-sp), lerp(-0.35,E.az,sp)]; r.elR=[lerp(-0.8,E.el,sp),0,0];
-    r.spine=[0.22*(1-sp),0,0.12*k.dir]; r.chest=[0.08,0,0]; r.neck=[0,0,0];
-    r.head=[0.3-0.32*sp - ph.whip*0.6*Math.sign(ph.ax||1), k.dir*0.55*sp, 0.2*k.dir]; r.hips=[0,0.1,0];
-    r.shL[0]+=ph.lag; r.shR[0]+=ph.lag*0.85; r.elL[0]+=ph.lag*0.5; r.elR[0]-=ph.lag*0.4;   // arms trail the fall
-    r.thL=[lerp(-0.5*buckle,E.tl,sp), 0.1,-0.15*sp]; r.knL=[lerp(1.0*buckle,E.kl,sp),0,0];
-    r.thR=[lerp(-0.5*buckle,E.tr,sp),-0.1, 0.2*sp];  r.knR=[lerp(1.0*buckle,E.kr,sp),0,0];
+    // where gravity and the fall pull each joint (limp arms end on the canvas, never in the air)
+    const T={ shL:[lerp(-0.25,E.ax,sp), 0.2*(1-sp), lerp(0.35,-E.az,sp)], elL:[lerp(-0.8,E.el,sp),0,0],
+      shR:[lerp(-0.25,E.ax,sp),-0.2*(1-sp), lerp(-0.35,E.az,sp)], elR:[lerp(-0.8,E.el,sp),0,0],
+      spine:[0.22*(1-sp),0,0.12*k.dir], chest:[0.08,0,0], neck:[0,0,0],
+      head:[0.3-0.32*sp, k.dir*0.55*sp, 0.2*k.dir], hips:[0,0.1,0],
+      thL:[lerp(-0.5*buckle,E.tl,sp), 0.1,-0.15*sp], knL:[lerp(1.0*buckle,E.kl,sp),0,0],
+      thR:[lerp(-0.5*buckle,E.tr,sp),-0.1, 0.2*sp], knR:[lerp(1.0*buckle,E.kr,sp),0,0] };
+    T.shL[0]+=ph.lag; T.shR[0]+=ph.lag*0.85; T.elL[0]+=ph.lag*0.5; T.elR[0]-=ph.lag*0.4;   // arms trail the fall
+    // RAGDOLL: every joint is a loose spring with almost no muscle tone left. It lags behind the body, overshoots,
+    // flops when he hits the canvas and settles — each limb a little differently, so no two knockouts look alike.
+    if(!ph.J){ ph.J={};
+      for(const n in T){ const v=r[n]||T[n], leg=/^(th|kn)/.test(n); ph.J[n]={x:[v[0],v[1],v[2]], v:[0,0,0], k:rand(18,36),
+        off: leg? [rand(-0.12,0.12),rand(-0.1,0.1),rand(-0.15,0.15)] : [rand(-0.28,0.28),rand(-0.2,0.2),rand(-0.3,0.3)]}; }
+      ph.J.knL.off[0]=ph.J.thL.off[0]*-2; ph.J.knR.off[0]=ph.J.thR.off[0]*-2;               // feet stay on the canvas
+      const J=ph.J, hs=ph.vx<0? -1 : 1;
+      J.head.v[0]+=hs*rand(4,8); J.head.v[1]+=k.dir*rand(3,9); J.head.v[2]+=k.dir*rand(2,6);   // the blow snaps the head round
+      J.neck.v[1]+=k.dir*rand(1,4); J.spine.v[2]+=k.dir*rand(0.5,2);
+      for(const n of ['shL','shR','elL','elR']){ J[n].v[0]+=rand(-5,2); J[n].v[2]+=rand(-4,4); }  // the guard flies apart
+      for(const n of ['knL','knR']) J[n].v[0]+=rand(0,3); }                                       // and the knees go
+    if(ph.landed && !ph.impact){ ph.impact=true; const im=clamp(0.6+ph.whip*2.4,0.6,2.6);       // slamming into the canvas
+      for(const n in ph.J){ const j=ph.J[n], m=/^(sh|el)/.test(n)?5 : n==='head'?6 : /^(th|kn)/.test(n)?3 : 1.6;
+        for(let i=0;i<3;i++) j.v[i]+=rand(-1,1)*im*m; } }
+    for(const n in ph.J){ const j=ph.J[n], tg=T[n], kk=j.k*(ph.landed?1.5:1), dmp=ph.landed?6.5:4;
+      for(let i=0;i<3;i++){ const tv=tg[i]+j.off[i]*sp;
+        j.v[i]+=((tv-j.x[i])*kk - j.v[i]*dmp)*dt; j.x[i]+=j.v[i]*dt;
+        j.x[i]=clamp(j.x[i], tv-1.5, tv+1.5); }
+      if(n==='knL'||n==='knR') j.x[0]=Math.max(-0.05,j.x[0]);                      // knees don't bend backwards
+      if(n==='elL'||n==='elR') j.x[0]=Math.min(0.05,j.x[0]);                       // nor do elbows
+      r[n]=[j.x[0],j.x[1],j.x[2]]; }
     const s=clamp(dt*10,0,1);
     this._koQ=koLeanQ(ph.ax,ph.az,this._koQ||new THREE.Quaternion());      // one lean direction, not two stacked Euler angles
     const ke=new THREE.Euler().setFromQuaternion(this._koQ,'XZY'); this.koTilt.x=ke.x; this.koTilt.z=ke.z;
@@ -3250,7 +3442,7 @@ function resolveHit(att, def, p, gloveWorld){
   let counter=1, perfectCounter=false;
   if(def.punch && !blocked){
     const ph = def.punch.t / def.punch.dur;
-    counter = ph<0.55 ? 2.1 : 1.35;           // ~1.5–2.5 band; the early window is the money shot
+    counter = ph<0.55 ? 1.75 : 1.3;           // the early window is the money shot
     perfectCounter = ph<0.55;
   }
   // FNC momentum: walking INTO the shot eats far more; backing away rides it out
@@ -3278,13 +3470,16 @@ function resolveHit(att, def, p, gloveWorld){
   if(!p.body){ const vision=Math.max(def.dmgZone.lEye, def.dmgZone.rEye); dmg *= (1 + clamp(vision,0,1)*0.15); }
 
   const preStun=def.stun, preHead=def.headHP;   // a flash-KO needs the man ALREADY hurt, not just this one shot
+  if(!blocked) def._hitT=0;                      // recovery pauses while he's getting hit
   if(p.body){
     def.bodyHP=clamp(def.bodyHP-dmg,0,100);
+    def.bodyMax=clamp((def.bodyMax??100)-dmg*0.22,25,100);
     def.stamina=clamp(def.stamina-dmg*0.85,0,100);
     def.balance-=dmg*0.45;
   } else {
     def.headHP=clamp(def.headHP-dmg,0,100);
-    def.stun=clamp(def.stun+dmg*D.stun*0.95,0,100);  // stun builds slower → takes sustained pressure to drop a man (not 2 shots)
+    def.headMax=clamp((def.headMax??100)-dmg*0.2,25,100);                       // part of every shot never comes back
+    def.stun=clamp(def.stun+dmg*D.stun*0.95*(def._grace>0?0.45:1),0,100);  // second wind after a knockdown: harder to re-stun
     def.balance-=dmg*0.6;
   }
   // bank the trauma (never fully heals) — drives chin erosion + reduced between-round recovery
@@ -3297,7 +3492,7 @@ function resolveHit(att, def, p, gloveWorld){
   att.dmgZone[handKey]=clamp(att.dmgZone[handKey]+dmg*0.006,0,1);
   // visual damage accumulation
   def.swelling=clamp(def.swelling + (p.body?0:dmg*0.012),0,1);
-  if(!p.body && Math.random()<dmg*0.012) def.cut=clamp(def.cut+0.2,0,1);
+  if(!p.body && Math.random()<dmg*0.010) def.cut=clamp(def.cut+0.12,0,1);
   // --- hit reaction (animation) ---
   const fdir = new THREE.Vector3(Math.sin(att.facing),0,Math.cos(att.facing));
   const power = clamp(dmg/15,0,1);
@@ -3349,20 +3544,21 @@ function resolveHit(att, def, p, gloveWorld){
 
   // knockdown / KO check
   if(!blocked){
-    const hurtAlready = preStun>74 || preHead<26;            // must be BADLY rocked by earlier shots — not just stung
+    // must be BADLY rocked by earlier shots — not just low on health (health recovers; being out on your feet doesn't)
+    const hurtAlready = def._grace<=0 && (preStun>74 || (preHead<12 && preStun>40));
     // flush = clean shot on an already-hurt man; a perfect counter can flash-drop a man who's at least somewhat worn down (rare, never off a single fresh shot)
-    const wornDown = preHead<70 || preStun>45;
-    const flashKO = !p.body && perfectCounter && wornDown && dmg>14 && Math.random()<0.45;  // the RARE perfect-counter flash — these stay down
+    const wornDown = preHead<45 || preStun>55;
+    const flashKO = !p.body && perfectCounter && wornDown && dmg>13 && Math.random()<0.3;  // the RARE perfect-counter flash — these stay down
     const flush = !p.body && ((hurtAlready && dmg>7) || flashKO);                          // ordinary worn-down knockdown (man usually beats the count)
     const downHead = def.headHP<=0 || def.stun>=100 || flush;
-    const downBody = def.bodyHP<=0 || (p.body && dmg>8 && def.bodyHP<28);
+    const downBody = def.bodyHP<=0 || (def._grace<=0 && p.body && dmg>9 && def.bodyHP<18);
     if((downHead||downBody) && !def.down){
       triggerKnockdown(att, def, fdir, p, downBody, flush, flashKO);
     }
     else if(!def.down && G.state==='fight'){
       // real-boxing stoppages without a knockdown: the DOCTOR stops it on a terrible cut,
       // the REF waves it off when a man is defenceless on his feet → TKO
-      if(def.cut>=0.95 && def.dmgZone.nose>0.55){
+      if(def.cut>=0.95 && def.dmgZone.nose>0.7 && G.round>=2 && Math.random()<0.25){   // the doctor only stops it late and rarely
         flash('TKO', null, 'RINGARZT BRICHT AB'); showComment(`Der <b>Ringarzt</b> prüft den Cut — das war's! Technischer K.o.`);
         endFight('TKO', att, def);
       } else if(def.headHP<=4 && def.stun>72){
@@ -3431,11 +3627,11 @@ function triggerKnockdown(att, def, fdir, p, body, flush, flashKO){
   const heart = def.def.chin/100;
   const threeKD = def.kdThisRound>=3;            // three-knockdown rule = automatic stoppage
   // a first knockdown is usually BEATEN — a good chin gets up; weak chins struggle. Each prior KD then drains the legs.
-  let rise = 0.88 - (1-heart)*0.45;              // strong chin ~0.88, weak chin ~0.43
-  rise *= [1, 0.70, 0.42, 0.22, 0.10][Math.min(def.knockdowns-1, 4)];
-  if(flashKO) rise*=0.34;                        // ONLY the rare perfect-counter flash KO rarely beats the count
-  if(def.headHP<=0) rise*=0.5;                   // head fully gone = brutal
-  if(body) rise*=0.85;
+  // like Fight Night Champion: the first knockdown is nearly always beaten, the fight ends after the 2nd-4th.
+  let rise = [0.96, 0.86, 0.6, 0.32, 0.12][Math.min(def.knockdowns-1, 4)] - (1-heart)*0.3;
+  if(flashKO) rise*=0.5;                         // the perfect-counter flash KO: often stays down
+  if(def.headHP<=0 && def.knockdowns>1) rise*=0.7;
+  if(body) rise*=0.9;
   const willRise = !threeKD && def.knockdowns<5 && Math.random()<rise;
   const dir = (p.key==='lhook'||p.key==='lupper'||p.key==='lbody')? 1
             : (p.key==='rhook'||p.key==='rupper'||p.key==='rbody')? -1 : (att.side<0?0.5:-0.5);
@@ -3446,6 +3642,7 @@ function triggerKnockdown(att, def, fdir, p, body, flush, flashKO){
   const need = canMash ? Math.round((10 + def.knockdowns*7) * (1 + (1-def.def.chin/100)*0.5) * (def.stamina<35?1.25:1)) : 0;
   def.koState={ fdir: fdir? {x:fdir.x, z:fdir.z} : null, t:0, dir, fall:0, target:1, countTarget: willRise? 1.6:9.5, willRise, body, flush, resolved:false,
     isPlayer, canMash, need, mash:0 };
+  if(G.reelMode){ G.koSlowmo=1.15; return; }     // menu highlight reel: just the fall, in slow motion
   if(flashKO) G.koSlowmo=1.2;                    // signature flash-KO slow-motion moment
   G.state='knockdown'; G.knockdownActor=def; G.knockdownAtt=att;
   G.countN = 1; G.countT = 0; G.countShown=0;
@@ -3801,7 +3998,7 @@ function updateAI(dt){
   // --- tactical state: a smart boxer paces itself, doesn't just walk forward ---
   const dc = DIFF[G.difficulty] || DIFF[1];              // difficulty scaling
   const lowStam = me.stamina < 35;
-  const hurt = me.headHP<30 || me.bodyHP<25;
+  const hurt = me.headHP<30 || me.bodyHP<25 || me.stun>55;
   // recover must be EXITABLE: headHP never regens mid-round, so gating on it alone froze the AI for the
   // rest of the round ('stops boxing'). Now: catch breath while gassed or freshly rocked — then fight on.
   const recover = lowStam || (hurt && me.stun>35);
@@ -4040,8 +4237,22 @@ function refreshHUD(){
     else            el.style.background = v>35?'' : v>18?'linear-gradient(180deg,#ffc07a,#eaa72f 50%,#b36d0d)'
                                         : 'linear-gradient(180deg,#ff8a8a,#e0383b 50%,#9e1218)'; };
   const hp=f=>f.headHP*0.65 + f.bodyHP*0.35;   // single HEALTH read, weighted toward the head
+  const mx=f=>(f.headMax??100)*0.65 + (f.bodyMax??100)*0.35;   // the ceiling — what's lost for good is striped red
   setBar('#stL', you.stamina,'sta'); setBar('#stR', opp.stamina,'sta');
   setBar('#hpL', hp(you),'hp');      setBar('#hpR', hp(opp),'hp');
+  for(const [f,k] of [[you,'L'],[opp,'R']]){
+    const h=clamp(hp(f),0,100), w=h+'%';
+    const g=$('#hg'+k); if(g && g.style.width!==w) g.style.width=w;              // the white/orange trail eats down after a beat
+    const sg=$('#sg'+k), sw=clamp(f.stamina,0,100)+'%'; if(sg && sg.style.width!==sw) sg.style.width=sw;
+    const c=$('#hc'+k); if(c) c.style.width=clamp(100-mx(f),0,100)+'%';
+    const hb=$('#hb'+k); if(hb) hb.classList.toggle('low', h<22);
+    const kd=$('#kd'+k), n=f.knockdowns||0; if(kd && kd.childElementCount!==n) kd.innerHTML='<i></i>'.repeat(n);
+    const card=$('#card'+k); if(card) card.classList.toggle('hurt', !f.down && f.stun>55);
+  }
+  // the player's own vision when rocked: red, dark edges + a heartbeat
+  const fx=$('#stunFx'); if(fx){ const v=you.down? 0.9 : clamp((you.stun-38)/48,0,0.85) + (hp(you)<18? 0.25:0);
+    fx.style.opacity=Math.min(0.9,v).toFixed(2);
+    if(v>0.3 && G.state==='fight' && G.t-(G._hb||0)>0.78){ G._hb=G.t; Audio.heart&&Audio.heart(v); fx.classList.remove('beat'); void fx.offsetWidth; fx.classList.add('beat'); } }
 }
 function buildHUDNames(){
   const you=player(), opp=ai();
@@ -4063,8 +4274,14 @@ function short(b){ return b.def.name.split('"')[1]? '"'+b.def.name.split('"')[1]
 /* count overlay */
 function showCount(on){ $('#count').classList.toggle('on',on); if(!on) $('#getup').classList.remove('on'); }
 function riseUp(def){
-  def.down=false; def.koState=null; def.headHP=Math.max(def.headHP, 22); def.bodyHP=Math.max(def.bodyHP,30);
-  def.stun=48; def.balance=60; def.stamina=Math.max(def.stamina,30);   // still groggy — visibly wobbles on the walk to the corner
+  // FNC get-up: every knockdown costs part of the ceiling for good, but beating the count gives back a solid share of
+  // what's left (more if he got up quickly). Then a few seconds of second wind before he can be dropped again.
+  def.down=false; def.koState=null;
+  const kdn=def.knockdowns||1, quick=clamp((9-(G.countT||9))/9,0,1);
+  def.headMax=clamp((def.headMax??100)-9-kdn*3, 28, 100); def.bodyMax=clamp((def.bodyMax??100)-5, 28, 100);
+  const frac=clamp(0.86-0.1*(kdn-1),0.45,0.86)+quick*0.1;
+  def.headHP=Math.max(def.headHP, def.headMax*frac); def.bodyHP=Math.max(def.bodyHP, def.bodyMax*Math.min(0.9,frac+0.1));
+  def.stun=22; def.balance=70; def.stamina=Math.max(def.stamina,45); def._grace=8; def._hitT=9;   // groggy, but not out on his feet
   showCount(false); $('#getup').classList.remove('on'); $('#countN').textContent='10';
   flash('UP!',null,'WIEDER AUF DEN BEINEN');
   log(`${short(def)} steht wieder! Was für ein Herz!`);
@@ -4177,6 +4394,7 @@ function beginRound(){
   $('#rdNum').textContent=G.round;
   $('#kdTag').textContent='';
   Audio.bell(1); crowdExcite=0.8;
+  { const cb=$('#ctlBar'); if(G.round===1){ cb.classList.add('on'); clearTimeout(G._ctlT); G._ctlT=setTimeout(()=>cb.classList.remove('on'),12000); } else cb.classList.remove('on'); }
   flash('ROUND '+G.round, null, 'BOX!');
   Audio.announce(G.round===G.rounds && G.rounds>1? 'Final round!' : 'Round '+G.round+'!', {cut:true, rate:0.9});
   showComment(`Runde ${G.round} — <b>los geht's!</b>`);
@@ -4185,7 +4403,8 @@ function beginRound(){
   for(const f of G.fighters){ f.cleanByRound=0; f.thrownByRound=0; f.dmgByRound=0; f.aggrByRound=0; f.lastPattern={}; f.kdThisRound=0;
     if(G.round>1){ // a battered fighter recovers less in the corner — damage carries into the late rounds
       const wH=clamp(f._cumHead/360,0,0.55), wB=clamp(f._cumBody/360,0,0.50);
-      f.headHP=clamp(f.headHP+18*(1-wH),0,100); f.bodyHP=clamp(f.bodyHP+22*(1-wB),0,100);
+      f.headMax=clamp((f.headMax??100)+5*(1-wH),0,100); f.bodyMax=clamp((f.bodyMax??100)+5*(1-wB),0,100);
+      f.headHP=clamp(f.headHP+30*(1-wH),0,f.headMax); f.bodyHP=clamp(f.bodyHP+30*(1-wB),0,f.bodyMax);
       f.stamina=clamp(f.stamina+55*(1-wB*0.6),0,100); f.stun=0; f.balance=100;
       // #3 cutman works the swelling down a little; the hands rest more — but the damage doesn't fully heal
       for(const k in f.dmgZone){ f.dmgZone[k]*= (k==='lHand'||k==='rHand')?0.5:0.80; } } }
@@ -4316,6 +4535,7 @@ function startReplay(pending){
 }
 function endReplay(){ $('#replayTag').classList.remove('on'); const p=G.replay.pending; G.replay=null; finishEndFight(p); }
 function endFight(method, winner, loser, sc){
+  if(G.reelMode) return;
   showCount(false); $('#statsPanel').classList.remove('on');
   if((method==='KO'||method==='TKO') && replayBuf.length>50){ startReplay({method,winner,loser,sc}); return; }  // FNC moment first
   finishEndFight({method,winner,loser,sc});
@@ -4340,8 +4560,14 @@ function showResult(method, winner, loser, sc){
   const you=player();
   const win = winner? (winner===you?'DU':'') : '';
   $('#resTitle').textContent = method==='DRAW'?'UNENTSCHIEDEN' : method==='DECISION'? 'PUNKTSIEG' : method;
-  $('#resWin').innerHTML = method==='DRAW'? 'Split Draw — kein Sieger'
-     : `SIEGER: ${winner.def.name} <span style="color:#fff">${winner===you?'(DU)':''}</span>`;
+  $('#resWin').innerHTML = method==='DRAW'? 'Kein Sieger'
+     : `${winner.def.name.replace(/"/g,'').toUpperCase()} ${winner===you?'<span style="color:#fff">· DU GEWINNST</span>':''}`;
+  $('#resSub').textContent = method==='DECISION'? ((sc&&sc.kind)||'')+' · NACH '+G.rounds+' RUNDEN'
+     : method==='DRAW'? 'UNENTSCHIEDEN NACH '+G.rounds+' RUNDEN' : 'RUNDE '+G.round+' · '+G.arena.name.toUpperCase();
+  G._resWinner=winner? winner.def : null;
+  if(winner && !_portraits[winner.def.id]){ try{ const u=renderPortrait(winner.def); if(u) _portraits[winner.def.id]=u; }catch(e){} }   // he's built already: shoot it now
+  $('#resPort').innerHTML = winner? fighterPortrait(winner.def) : '';
+  $('#resHero').classList.toggle('lost', !!winner && winner!==you);
   // scoreboard
   const sb=$('#scoreboard'); sb.innerHTML='';
   const head=`<div class="h">${player().def.name}</div><div class="h">RUNDE</div><div class="h" style="text-align:right">${ai().def.name}</div>`;
@@ -4414,6 +4640,7 @@ function animate(){
     else if(G.state==='between'){ updateBetween(gdt); updateBreak(dt); }   // corners + skippable 30s break
     else if(G.state==='knockdown'){ updateNeutralCorner(gdt); }            // ref sends the opponent to a neutral corner
     else if(G.state==='ringwalk'){ updateEntrance(gdt); }    // walk in from the corners at the start
+    if(stage) updateStage(G.reelMode? gdt : dt);
     if(G.state==='replay'){ playReplay(dt); }                // slow-mo playback drives the bones — no live updates
     else {
       if(G.fighters[0]){ G.fighters[0].update(gdt, G.fighters[1]); }
@@ -4439,9 +4666,14 @@ function animate(){
 function togglePause(){
   if(G.state!=='fight' && G.state!=='knockdown') return;
   G.paused=!G.paused;
-  showComment(G.paused? '<b>PAUSE</b> — P zum Fortsetzen':'');
+  $('#pauseOv').classList.toggle('on', G.paused);
+  if(window.speechSynthesis) G.paused? speechSynthesis.pause() : speechSynthesis.resume();
 }
 document.getElementById('pauseBtn')?.addEventListener('click',e=>{ e.stopPropagation(); togglePause(); });
+document.getElementById('poResume')?.addEventListener('click',e=>{ e.stopPropagation(); if(G.paused) togglePause(); });
+document.getElementById('poMenu')?.addEventListener('click',e=>{ e.stopPropagation(); G.paused=false; $('#pauseOv').classList.remove('on');
+  try{ speechSynthesis.cancel(); }catch(_){} showCount(false); $('#statsPanel').classList.remove('on'); G.clinch=null; G.postKD=null;
+  document.getElementById('stunFx').style.opacity=0; fadeTo(()=>defaultMenu()); });
 function fadeTo(cb){ const f=$('#fade'); f.classList.add('on'); setTimeout(()=>{ cb&&cb(); f.classList.remove('on'); },520); }
 
 /* ============================== MENU WIRING ============================== */
@@ -4454,6 +4686,10 @@ function fnStat(f){ return {
 const FN_STAT_ORDER=['POWER','SPEED','AGILITY','STAMINA','CHIN','BODY','HEART','CUTS'];
 function nameStack(f){ const p=f.name.replace(/"/g,'').split(' '); const last=p.pop();
   return `<div class="fn1">${p.join(' ')}</div><div class="fn2">${last.toUpperCase()}</div>`; }
+function weightClass(f){ const kg=f.weightKg||80;
+  return kg>90.7?'HEAVYWEIGHT':kg>79.4?'CRUISERWEIGHT':kg>76.2?'LIGHT HEAVYWEIGHT':kg>72.6?'SUPER MIDDLEWEIGHT':kg>69.9?'MIDDLEWEIGHT'
+       :kg>66.7?'SUPER WELTERWEIGHT':kg>63.5?'WELTERWEIGHT':kg>61.2?'SUPER LIGHTWEIGHT':kg>59?'LIGHTWEIGHT':kg>57.2?'SUPER FEATHERWEIGHT'
+       :kg>55.3?'FEATHERWEIGHT':kg>53.5?'SUPER BANTAMWEIGHT':'BANTAMWEIGHT'; }
 function renderSelect(){
   prewarmLooks([G.you, G.opp]);                     // build the picked fighters' looks in the background
   const y=G.you, o=G.opp;
@@ -4461,6 +4697,7 @@ function renderSelect(){
   py.style.setProperty('--c1',y.c1); py.style.setProperty('--c2',y.c2); py.innerHTML=fighterPortrait(y);
   po.style.setProperty('--c1',o.c1); po.style.setProperty('--c2',o.c2); po.innerHTML=fighterPortrait(o);
   $('#nameYou').innerHTML=nameStack(y); $('#nameOpp').innerHTML=nameStack(o);
+  const cls=document.querySelectorAll('#scrSelect .fnclass'); if(cls.length===2){ cls[0].textContent=weightClass(y); cls[1].textContent=weightClass(o); }
   const sy=fnStat(y), so=fnStat(o);
   $('#fnTable').innerHTML=FN_STAT_ORDER.map(k=>
     `<div class="fnstatrow"><span class="lv">${sy[k]}</span><span class="kk">${k}</span><span class="rv">${so[k]}</span></div>`).join('');
@@ -4470,7 +4707,10 @@ function cycleFighter(side,dir){
   const cur = side==='you'?G.you:G.opp;
   let i=(FIGHTERS.indexOf(cur)+dir+FIGHTERS.length)%FIGHTERS.length;
   if(side==='you') G.you=FIGHTERS[i]; else G.opp=FIGHTERS[i];
-  Audio.bell?.(0); renderSelect();
+  Audio.bell?.(0); renderSelect(); setSelectFighter(side, FIGHTERS[i], dir);
+  const card=document.querySelector('#scrSelect .fnside.'+(side==='you'?'blue':'red'));
+  if(card){ card.classList.remove('swap'); void card.offsetWidth; card.classList.add('swap'); }
+  const tb=$('#fnTable'); if(tb){ tb.classList.remove('swap'); void tb.offsetWidth; tb.classList.add('swap'); }
 }
 function buildSelectUI(){
   if(!FIGHTERS.includes(G.you)) G.you=FIGHTERS[0];   // exhibition uses the real roster, not the story-only James
@@ -4526,7 +4766,7 @@ function renderPortrait(f){
   if(b.gloveMat) b.gloveMat.color.set(f.trunk||'#222');                  // portrait gloves match the trunks
   const ps=new THREE.Scene(); ps.environment=scene.environment; ps.background=new THREE.Color(0x0a0d14);
   ps.add(new THREE.HemisphereLight(0xbfd4ff,0x22180e,0.75));
-  const key=new THREE.DirectionalLight(0xffe2c4,2.6); key.position.set(1.6,3.2,2.6); ps.add(key);
+  const key=new THREE.DirectionalLight(0xfff0e4,1.9); key.position.set(1.6,3.2,2.6); ps.add(key);
   const rim=new THREE.DirectionalLight(0x8fb8ff,2.4); rim.position.set(-2.4,2.4,-2.0); ps.add(rim);
   const fill=new THREE.DirectionalLight(0xffffff,0.5); fill.position.set(-1.6,1.2,2.6); ps.add(fill);
   ps.add(b.root); b.pos.set(0,0,0); b.facing=0; b._portrait=true;
@@ -4536,14 +4776,15 @@ function renderPortrait(f){
   cam.aspect=W/H; const lx=-0.62*(b.mirror||1);                  // shoot from the LEAD-hand side, past the guard
   cam.position.set(h.x+lx, h.y+0.04, h.z+2.35); cam.lookAt(h.x+lx*0.12, h.y-0.33, h.z); cam.updateProjectionMatrix();
   renderer.render(ps,cam);
-  const out=document.createElement('canvas'); out.width=300; out.height=380;
-  const cw=Math.min(W, Math.round(H*300/380)); out.getContext('2d').drawImage(cv,(W-cw)/2,0,cw,H,0,0,300,380);
+  const out=document.createElement('canvas'); out.width=480; out.height=608;            // sharp enough for the big menu hero
+  const cw=Math.min(W, Math.round(H*480/608)); out.getContext('2d').drawImage(cv,(W-cw)/2,0,cw,H,0,0,480,608);
   if(composer) composer.render(); else renderer.render(scene,camera);   // repaint the live frame in the same task: no flash
   ps.remove(b.root); if(b.realMat) b.realMat.dispose();
   return out.toDataURL('image/jpeg',0.86);
 }
 function onPortraitReady(){
   if(!$('#scrSelect').classList.contains('hidden')) renderSelect();
+  if(G._resWinner && !$('#scrResult').classList.contains('hidden')) $('#resPort').innerHTML=fighterPortrait(G._resWinner);
   renderMenuArt();
 }
 function fighterPortraitSVG(f){
@@ -4911,9 +5152,121 @@ function careerResult(winner, method){
 }
 
 function show(id){ ['scrTitle','scrSelect','scrCtl','scrResult','scrStory','scrInfo'].forEach(s=>$('#'+s).classList.add('hidden'));
-  if(id) $('#'+id).classList.remove('hidden'); }
+  if(id) $('#'+id).classList.remove('hidden');
+  if(id==='scrTitle') setTimeout(startReel,0);
+  else if(id==='scrSelect') setTimeout(startSelectStage,0);
+  else if(typeof stopStage==='function') stopStage(); }
 
-function renderMenuArt(){ const el=$('#menuArt'); if(el) el.innerHTML=fighterPortrait(G.you||FIGHTERS[0]); }
+function renderMenuArt(){ const el=$('#menuArt'); if(el) el.innerHTML=''; }   // the live highlight reel fills that side now
+
+/* ======================= MENU STAGE: the engine itself is the menu backdrop =======================
+   MAIN MENU  — a highlight reel: two boxers, a short exchange, the knockout in slow motion on a cinematic camera,
+                then the next pairing. Every fall is the real ragdoll, so no clip ever repeats exactly.
+   SELECT     — the two picked boxers stand in the ring and stare each other down; switching one walks the old
+                man off into the dark and the new one in from the side. */
+const REEL=[
+  {a:'tyson', b:'fury',  setup:['jab','lhook','jab'],  fin:'rupper', cap:'IRON MIKE · UPPERCUT-K.O.'},
+  {a:'canelo',b:'ali',   setup:['jab','rbody','jab'],  fin:'lhook',  cap:'CANELO · LINKER HAKEN'},
+  {a:'inoue', b:'usyk',  setup:['jab','jab','rhook'],  fin:'lbody',  cap:'THE MONSTER · LEBERHAKEN'},
+  {a:'ali',   b:'tyson', setup:['jab','jab','jab'],    fin:'rhook',  cap:'THE GREATEST · KONTER'},
+  {a:'fury',  b:'canelo',setup:['jab','jab','lhook'],  fin:'rupper', cap:'GYPSY KING · UPPERCUT'},
+  {a:'usyk',  b:'inoue', setup:['jab','rhook','jab'],  fin:'lhook',  cap:'THE CAT · LINKER HAKEN'},
+];
+let stage=null;
+const _sc={p:new THREE.Vector3(), l:new THREE.Vector3(), init:false};
+function stageBoxer(def, side){ const b=new Boxer(def, side); b.attachReal(); return b; }
+function stopStage(){
+  if(!stage) return;
+  for(const f of (stage.leaving||[])) scene.remove(f.root);
+  clearFighters(); stage=null; G.reelMode=false; G.debugCam=null; G.koSlowmo=0; G.hitStop=0; _sc.init=false;
+  document.body.classList.remove('stage3d');
+  const cap=$('#reelCap'); if(cap) cap.classList.remove('on');
+}
+function startReel(){
+  if(stage && stage.mode==='reel') return;
+  if($('#scrTitle').classList.contains('hidden')) return;
+  if(!realTpl){ loadRealModel().then(ok=>{ if(ok) startReel(); }); return; }
+  stopStage(); G.state='menu'; G.reelMode=true; document.body.classList.add('stage3d');
+  stage={mode:'reel', i:Math.floor(Math.random()*REEL.length), clip:null};
+  nextClip();
+}
+function nextClip(){
+  clearFighters(); const c=REEL[stage.i++ % REEL.length];
+  const A=stageBoxer(fighterById(c.a), -1), B=stageBoxer(fighterById(c.b), +1);
+  G.fighters=[A,B]; A.pos.set(0,0,-1.3); B.pos.set(0,0,0.5); A.faceTarget(B.pos); B.faceTarget(A.pos);
+  G.koSlowmo=0; G.hitStop=0; _sc.init=false;
+  stage.clip={c, A, B, t:0, step:0, nextT:1.2, fired:false, kdT:null, fading:false, orb:0, base:(Math.random()<0.5?1:-1)*Math.PI/2, orbDir:Math.random()<0.5?-1:1};
+  const cap=$('#reelCap'); if(cap){ cap.innerHTML=`<span class="dot"></span>HIGHLIGHT<b>${c.cap}</b>`; cap.classList.remove('on'); void cap.offsetWidth; cap.classList.add('on'); }
+}
+function stageCam(pos, look, rate, dt){
+  if(!_sc.init){ _sc.p.copy(pos); _sc.l.copy(look); _sc.init=true; }
+  _sc.p.lerp(pos, 1-Math.exp(-dt*rate)); _sc.l.lerp(look, 1-Math.exp(-dt*rate*1.3));
+  G.debugCam={pos:_sc.p.toArray(), look:_sc.l.toArray(), fov:stage&&stage.mode==='select'? 42 : 50};
+}
+function updateReel(dt){
+  const k=stage.clip; if(!k) return; k.t+=dt; const {A,B}=k;
+  if(!A.down && !B.down){ A.faceTarget(B.pos); B.faceTarget(A.pos); }
+  const d=A.pos.distanceTo(B.pos);
+  if(!B.down && d>0.9){ const v=B.pos.clone().sub(A.pos).setY(0).normalize(); A.pos.addScaledVector(v,1.15*dt); A.moving=Math.max(A.moving,0.85); }
+  if(!A.punch && !k.fired) B.blocking=false;
+  if(!k.fired && k.t>=k.nextT && d<1.0 && !A.punch){
+    if(k.step<k.c.setup.length){ B.blocking=Math.random()<0.55; A.startPunch(k.c.setup[k.step]); k.step++; k.nextT=k.t+rand(0.5,0.8);
+      if(Math.random()<0.45) k.bJab=k.t+rand(0.25,0.4); }                          // he fires back now and then
+    else { B.blocking=false; B.headHP=1; B.stun=96; if(/body/.test(k.c.fin)) B.bodyHP=1;
+      A.startPunch(k.c.fin); k.fired=true; k.finT=k.t; }
+  }
+  if(k.bJab && k.t>k.bJab){ k.bJab=null; if(!B.punch && !B.down){ B.startPunch('jab'); A.blocking=true; k.aUn=k.t+0.35; } }
+  if(k.aUn && k.t>k.aUn){ A.blocking=false; k.aUn=null; }
+  if(k.fired && !B.down && k.t>k.finT+1.0){ k.fired=false; k.nextT=k.t+0.15; }  // missed it — throw it again
+  if(B.down && k.kdT==null){ k.kdT=k.t; }
+  if(B.down && !A.down){ const away=A.pos.clone().sub(B.pos).setY(0); if(away.length()<1.6){ A.pos.addScaledVector(away.normalize(),0.7*dt); A.moving=0.6; } A.faceTarget(B.pos); }
+  if(!k.fading && ((k.kdT!=null && k.t>k.kdT+4.6) || k.t>16)){ k.fading=true;
+    fadeTo(()=>{ if(stage && stage.mode==='reel') nextClip(); }); }
+  // camera: a slow orbit framing the fight on the right of the screen; low and close for the knockout
+  if(k.kdT==null) k.orb=k.base+Math.sin(k.t*0.3)*0.5*k.orbDir;            // side-on to the exchange, gently swaying
+  else k.orb+=dt*0.3*k.orbDir;                                              // then a slow circle round the fallen man
+  const fx=k.kdT!=null? B.worldBody(new THREE.Vector3()) : new THREE.Vector3().addVectors(A.pos,B.pos).multiplyScalar(0.5);   // the fallen man's body, not his feet
+  const R=k.kdT!=null? 2.3 : 2.6, hy=k.kdT!=null? 0.8 : 1.4;
+  const cp=new THREE.Vector3(fx.x+Math.sin(k.orb)*R, G.matTop+hy, fx.z+Math.cos(k.orb)*R);
+  const lim=G.ringHalf+0.15; cp.x=clamp(cp.x,-lim,lim); cp.z=clamp(cp.z,-lim,lim);       // stay inside the ropes
+  const view=new THREE.Vector3(fx.x-cp.x,0,fx.z-cp.z).normalize(), right=new THREE.Vector3(-view.z,0,view.x);
+  const half=R*Math.tan(THREE.MathUtils.degToRad(25))*camera.aspect;
+  const off=innerWidth>innerHeight*1.1? half*0.36 : 0.1;                  // push the action right, beside the menu
+  const lk=new THREE.Vector3(fx.x,G.matTop+(k.kdT!=null?0.5:1.1),fx.z).addScaledVector(right,-off);
+  stageCam(cp, lk, k.kdT!=null? 2.2 : 1.6, dt);
+}
+/* --- select screen --- */
+const SEL_Z=-0.9;                                                         // they stand at the back: the whole man in frame
+function selX(side){ const D=2.75-SEL_Z, half=D*Math.tan(THREE.MathUtils.degToRad(21))*camera.aspect;
+  return (side==='you'?-1:1)*clamp(half*0.58, 0.6, 1.9); }
+function startSelectStage(){
+  if(stage && stage.mode==='select') return;
+  if(!realTpl){ loadRealModel().then(ok=>{ if(ok && !$('#scrSelect').classList.contains('hidden')) startSelectStage(); }); return; }
+  stopStage(); G.state='menu'; document.body.classList.add('stage3d');
+  stage={mode:'select', slots:{you:null,opp:null}, leaving:[]};
+  setSelectFighter('you', G.you, 0); setSelectFighter('opp', G.opp, 0);
+}
+function setSelectFighter(side, def, dir){
+  if(!stage || stage.mode!=='select') return;
+  const old=stage.slots[side], sg=side==='you'?-1:1, b=stageBoxer(def, sg), x=selX(side);
+  b._selX=x; b.pos.set(dir? x+sg*2.4 : x, 0, SEL_Z);              // new man walks in from his side of the ring
+  if(old) stage.leaving.push(old);                                       // the old one walks off into the dark
+  stage.slots[side]=b; G.fighters=[stage.slots.you, stage.slots.opp].filter(Boolean);
+}
+function updateSelectStage(dt){
+  const cam=new THREE.Vector3(0, G.matTop+1.25, 2.75);
+  for(const side of ['you','opp']){ const b=stage.slots[side]; if(!b) continue;
+    b._selX=selX(side); const o=stage.slots[side==='you'?'opp':'you'];
+    const arrived=stepToward(b, b._selX, SEL_Z, 1.5, dt);
+    if(!arrived) b.faceTarget({x:b._selX, z:SEL_Z+0.6});                 // walks in sideways, chest to the camera
+    else b.faceTarget(o? {x:o.pos.x*0.35, z:2.2} : {x:0,z:3});           // half to the camera, half staring him down
+  }
+  for(let i=stage.leaving.length-1;i>=0;i--){ const b=stage.leaving[i]; b.update(dt,null);
+    const done=stepToward(b, b.pos.x*1.15, -3.2, 1.6, dt); b.faceTarget({x:b.pos.x, z:-5});
+    if(done || b.pos.z<-3.1){ scene.remove(b.root); stage.leaving.splice(i,1); } }
+  stageCam(cam, new THREE.Vector3(0, G.matTop+0.95, SEL_Z), 3, dt);
+}
+function updateStage(dt){ if(!stage) return; if(stage.mode==='reel') updateReel(dt); else updateSelectStage(dt); }
 function wireMenus(){
   renderMenuArt();
   $('#btnStart').onclick=()=>{ Audio.init(); Audio.resume(); buildSelectUI(); show('scrSelect'); };
@@ -4921,7 +5274,7 @@ function wireMenus(){
   $('#schemeSeg').querySelectorAll('.seg').forEach(b=>{ b.onclick=()=>setScheme(b.dataset.s); });
   $('#gfxSeg').querySelectorAll('.seg').forEach(b=>{ b.onclick=()=>setGfx(b.dataset.g); });
   // prefetch the character model, then pre-build the default matchup's looks while the menu is idle
-  loadRealModel().then(ok=>{ if(!ok) return; prewarmLooks([G.you, G.opp, REF_DEF]);
+  loadRealModel().then(ok=>{ if(!ok) return; prewarmLooks([G.you, G.opp, REF_DEF]); startReel();
     [G.you, G.opp, ...FIGHTERS].forEach(queuePortrait); });
   // main-menu modes
   $('#btnChampion').onclick=()=>startChampion();
@@ -4966,11 +5319,11 @@ function boot(){
       if(document.hidden && G.state==='fight' && !G.paused){ G.paused=true; showComment('<b>PAUSE</b> — Fenster im Hintergrund'); }
     });
     // small debug handle (also handy for tinkering)
-    window.__FN={ get G(){return G;}, player, ai, PUNCHES, PUNCH_ANIM, REST, samplePunch, FIGHTERS, ARENAS, resolveHit, setCam, Boxer, updateAI, buildReferee, updateReferee, celebrateWin, buildBelt, endFight, get renderer(){return renderer;}, get scene(){return scene;}, get camera(){return camera;}, get composer(){return composer;}, get bloom(){return bloomPass;}, cornerFor, updateBetween, updateEntrance, showStools, get stools(){return cornerStools;},
+    window.__FN={ get G(){return G;}, player, ai, PUNCHES, PUNCH_ANIM, REST, samplePunch, FIGHTERS, ARENAS, buildArena, resolveHit, setCam, Boxer, updateAI, buildReferee, updateReferee, celebrateWin, buildBelt, endFight, get renderer(){return renderer;}, get scene(){return scene;}, get camera(){return camera;}, get composer(){return composer;}, get bloom(){return bloomPass;}, cornerFor, updateBetween, updateEntrance, showStools, get stools(){return cornerStools;},
       newCareer, fighterById, pickCareerOpponent, careerResult, nextCareerFight, showCareer, saveCareer, loadCareer,
       careerBoxerDef, careerTrain, careerMatchup, get PERSONA(){return PERSONA;},
       maybeCareerEvent, prepDecision, careerEnding, get CAREER_EVENTS(){return CAREER_EVENTS;},
-      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
+      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, updateStage, get stage(){return stage;}, startReel, stopStage, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
       loadRealModel, get realTpl(){return realTpl;} };
     $('#loading').style.display='none';
     window.__booted=true;
