@@ -199,6 +199,25 @@
     border-radius:10px;padding:10px 18px;font-weight:800;font-size:13px;letter-spacing:1px;color:#fff;opacity:0;pointer-events:none}
   #padToast.on{animation:toast 3s ease both}
   @keyframes toast{0%{opacity:0;transform:translate(-50%,10px)}10%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
+  #coinBadge{position:absolute;top:max(16px,env(safe-area-inset-top));right:22px;z-index:4;font-family:var(--disp);font-weight:800;font-size:20px;
+    letter-spacing:1px;color:#fff;background:rgba(8,12,18,.7);border:1px solid #2a3647;border-radius:20px;padding:5px 14px}
+  #coinBadge b{color:var(--accent)}
+  .shop-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .shop-coins{font-family:var(--disp);font-weight:900;font-size:30px;color:#fff} .shop-coins b{color:var(--accent)}
+  .shop-note{font-size:12px;color:var(--muted);flex:1;min-width:220px}
+  .shop-tabs{display:flex;gap:6px;margin-bottom:12px}
+  .shop-tab{appearance:none;cursor:pointer;font-family:var(--disp);font-weight:800;font-size:15px;letter-spacing:2px;color:#cdd6e2;
+    background:#0e141d;border:1px solid #2a3647;border-radius:8px;padding:6px 16px}
+  .shop-tab.on{background:var(--accent);color:#1a1300;border-color:var(--accent)}
+  .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .shop-card{background:linear-gradient(180deg,#121a26,#0a0f16);border:1px solid #233044;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px;align-items:stretch}
+  .shop-card.eq{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .shop-card .sw{height:64px;border-radius:9px;position:relative;overflow:hidden;box-shadow:inset 0 -12px 20px rgba(0,0,0,.35)}
+  .shop-card .sw.trunks{border-radius:9px 9px 26px 26px}
+  .shop-card .sw.gloves{border-radius:30px}
+  .shop-card .sw i{position:absolute;left:0;right:0;top:10px;height:9px}
+  .shop-card .nm{font-weight:800;font-size:13px;color:#fff}
+  .shop-card .btn{padding:8px 10px;font-size:12px}
   /* network bug + lower third */
   .bug{position:absolute;bottom:34px;right:18px;display:flex;align-items:center;gap:7px;
     font-weight:800;letter-spacing:1px;font-size:13px;color:#fff;opacity:.92}
@@ -696,7 +715,7 @@
 <div id="pauseOv"><div class="po-box"><div class="po-t">PAUSE</div>
   <button class="btn primary" id="poResume">Weiter kämpfen</button>
   <button class="btn" id="poMenu">Kampf aufgeben · Hauptmenü</button>
-  <div class="po-keys"><kbd>D</kbd> vor · <kbd>A</kbd> zurück · <kbd>W</kbd><kbd>S</kbd> seitlich · <kbd>↑</kbd> Jab · <kbd>←</kbd><kbd>→</kbd> Haken · <kbd>←/→</kbd>+<kbd>↑</kbd> Uppercut · <kbd>←/→</kbd>+<kbd>↓</kbd> Körper · <kbd>Leertaste</kbd> Block · <kbd>Shift</kbd> Ausweichen · <kbd>E</kbd> Clinch<br>🎮 Rechter Stick schlagen · L1 Körper · R1 Block · L2 ausweichen · R2 Clinch</div></div></div>
+  <div class="po-keys"><kbd>D</kbd> vor · <kbd>A</kbd> zurück · <kbd>W</kbd><kbd>S</kbd> seitlich · <kbd>↑</kbd> Jab · <kbd>←</kbd>+<kbd>→</kbd> Gerade · <kbd>←</kbd> / <kbd>→</kbd> Haken · <kbd>←/→</kbd>+<kbd>↑</kbd> Uppercut · <kbd>←/→</kbd>+<kbd>↓</kbd> Körper · <kbd>Leertaste</kbd> Block · <kbd>Shift</kbd> Ausweichen · <kbd>E</kbd> Clinch<br>🎮 Rechter Stick schlagen · L1 Körper · R1 Block · L2 ausweichen · R2 Clinch</div></div></div>
 <div id="count"><div class="n" id="countN">10</div><div class="t">BOX!</div>
   <div id="getup"><div class="gu-lab">HÄMMERE ← ↑ ↓ → / LEERTASTE / ✕ □ ○ △ — STEH AUF!</div>
     <div class="gu-bar"><i id="guFill"></i></div></div></div>
@@ -714,7 +733,7 @@
         <button class="fnm-item" id="btnControls">STEUERUNG</button>
         <button class="fnm-item" id="btnCorner">MY CORNER</button>
         <button class="fnm-item" id="btnOnline">2 SPIELER</button>
-        <button class="fnm-item" id="btnStore">FIGHT NIGHT STORE</button>
+        <button class="fnm-item" id="btnStore">STORE</button>
       </nav>
       <div class="fnm-note" id="menuNote"></div>
     </div>
@@ -794,7 +813,8 @@
     <div class="ev"><div class="ts">Ducken</div><div class="tx"><kbd>Shift</kbd>+<kbd>A</kbd>/<kbd>D</kbd>/<kbd>W</kbd>/<kbd>S</kbd> — wegducken &amp; ausweichen</div></div>
     <div class="ev"><div class="ts">Kamera</div><div class="tx"><kbd>C</kbd> wechseln &nbsp; · &nbsp; Pause <kbd>P</kbd> &nbsp; · &nbsp; Clinch <kbd>E</kbd></div></div>
     <div class="ev"><div class="ts">🎮 PS4</div><div class="tx"><b>Linker Stick</b> bewegen · <b>Rechter Stick</b> schlagen: ↑ Jab · ← linker Haken · → rechter Haken · ↙ ↘ Uppercuts · ↓ tiefe Gerade</div></div>
-    <div class="ev"><div class="ts">🎮 Tasten</div><div class="tx"><kbd>□</kbd> Jab · <kbd>✕</kbd> linker Haken · <kbd>○</kbd> rechter Haken · <kbd>△</kbd> Uppercut</div></div>
+    <div class="ev"><div class="ts">Gerade</div><div class="tx"><kbd>←</kbd>+<kbd>→</kbd> gleichzeitig — die gerade Rechte (Cross), der Powerschlag nach dem Jab</div></div>
+    <div class="ev"><div class="ts">🎮 Tasten</div><div class="tx"><kbd>□</kbd> Jab · <kbd>△</kbd> gerade Rechte · <kbd>✕</kbd> linker Haken · <kbd>○</kbd> rechter Haken · <kbd>L3</kbd>/<kbd>R3</kbd> Uppercuts · rechter Stick <kbd>↗</kbd> Gerade</div></div>
     <div class="ev"><div class="ts">🎮 Körper</div><div class="tx"><kbd>L1</kbd> halten + Schlag = zum Körper</div></div>
     <div class="ev"><div class="ts">🎮 Abwehr</div><div class="tx"><kbd>R1</kbd> Block · <kbd>L2</kbd> + linker Stick: ← zurücklehnen, ↑↓ ausweichen, allein = abducken · <kbd>R2</kbd> Clinch</div></div>
     <div class="ev"><div class="ts">🎮 Sonst</div><div class="tx"><kbd>OPTIONS</kbd> Pause · <kbd>Steuerkreuz ↑</kbd> Kamera · am Boden: Tasten hämmern</div></div>
@@ -857,14 +877,14 @@
 
 <!-- TOUCH CONTROLS (phones) -->
 <div id="touch">
-  <div id="tSwipe" class="t-swipe"><span>WISCHEN = SCHLAGEN<br><small>↑ Jab · ← → Haken · ↖ ↗ Uppercut · ↙ ↘ Körper · ↓ tief · Tippen = Jab</small></span></div>
+  <div id="tSwipe" class="t-swipe"><span>WISCHEN = SCHLAGEN<br><small>Tippen = Jab · ↑ Gerade · ← → Haken · ↖ ↗ Uppercut · ↙ ↘ Körper · ↓ tief</small></span></div>
   <div id="tStick" class="t-stick"><div id="tKnob" class="t-knob"></div></div>
   <div class="t-actions">
     <button class="t-btn" data-p="lhook">L-HOOK</button>
     <button class="t-btn jab" data-p="jab">JAB</button>
     <button class="t-btn" data-p="rhook">R-HOOK</button>
     <button class="t-btn" data-p="lupper">L-UPP</button>
-    <button class="t-btn" data-p="rbody">KÖRPER</button>
+    <button class="t-btn" data-p="cross">GERADE</button>
     <button class="t-btn" data-p="rupper">R-UPP</button>
     <button class="t-btn hold" data-hold="shift">AUSWEICHEN</button>
     <button class="t-btn hold clinch" id="tClinch">CLINCH</button>
@@ -949,6 +969,24 @@ const FIGHTERS = [
    punchStyle:{arc:0.9, body:1.2, flick:0.3}, plan:'pressure', face:{noseW:0.95,noseL:0.85,brow:0.9,jaw:0.95,lips:0.9,cheek:1.05,chin:0.95}, body:{def:0.9,veins:0.7,neck:0.5,traps:0.6,delts:0.7,chest:0.7,arms:0.6,lats:0.7,thigh:0.7,calf:0.5},
    guardStyle:'compact', handSpd:0.86, bounceMul:1.2, weaveMul:1.2,    // explosive, compact, everything snaps
    pwr:96,spd:96,sta:88,chin:82,def:88,reach:70,iq:95,agg:84},
+  {id:'mayweather', name:'Floyd Mayweather', nick:'MONEY', style:'Philly Shell · Konter-Genie', init:'FM',
+   c1:'#2a2418',c2:'#0e0b06', trunk:'#121212', skin:'#5e3e2a', hair:'short', hairCol:'#0c0908', beard:0.3,
+   weightKg:66.6, heightM:1.73, hScale:0.96, build:1.0, reachL:0.98, stance:'orthodox', kit:{trim:'#d4a93c', shoe:'#121212', sock:'#d4a93c'},
+   scars:0.1, punchStyle:{arc:0.85, body:0.8, flick:0.55}, plan:'shell', face:{noseW:1.15,noseL:0.95,brow:1.05,jaw:1.05,lips:1.15,cheek:1.1,chin:1.0}, body:{def:0.95,veins:0.9,neck:0.7,traps:0.9,delts:1.0,chest:0.9,arms:0.9,lats:0.9,thigh:0.7,calf:0.5},
+   guardStyle:'shell', handSpd:0.8, bounceMul:1.0, weaveMul:1.25,      // shoulder roll, lead hand low, right hand ready
+   pwr:78,spd:96,sta:94,chin:90,def:99,reach:80,iq:99,agg:48},
+  {id:'pacquiao', name:'Manny Pacquiao', nick:'PACMAN', style:'Southpaw · Wirbelwind', init:'MP',
+   c1:'#1a2a4a',c2:'#08101e', trunk:'#1c3faa', skin:'#b98a62', hair:'short', hairCol:'#0d0a08', beard:0,
+   weightKg:66.5, heightM:1.66, hScale:0.9, build:1.0, reachL:0.9, stance:'southpaw', kit:{trim:'#d8262f', shoe:'#f2f2f2', sock:'#d8262f'},
+   scars:0.4, punchStyle:{arc:0.9, body:1.0, flick:0.3}, plan:'blitz', face:{noseW:1.15,noseL:0.9,brow:1.05,jaw:1.0,lips:1.05,cheek:1.2,chin:0.95}, body:{def:0.95,veins:0.9,neck:0.6,traps:0.8,delts:0.9,chest:0.8,arms:0.8,lats:0.9,thigh:0.9,calf:0.7},
+   guardStyle:'compact', handSpd:0.78, bounceMul:1.45, weaveMul:1.3,   // in-and-out, explosive, never stands still
+   pwr:88,spd:97,sta:95,chin:86,def:80,reach:70,iq:90,agg:92},
+  {id:'garcia', name:'Ryan Garcia', nick:'KINGRY', style:'Blitzschneller Linker Haken', init:'RG',
+   c1:'#3a3324',c2:'#141008', trunk:'#f4f1ea', skin:'#d4a47c', hair:'short', hairCol:'#2a1a10', beard:0.2,
+   weightKg:61, heightM:1.78, hScale:0.98, build:0.86, reachL:1.0, stance:'orthodox', kit:{trim:'#c9a24a', shoe:'#f4f1ea', sock:'#f4f1ea'},
+   punchStyle:{arc:1.05, body:0.85, flick:0.45}, plan:'sniper', face:{noseW:0.95,noseL:1.05,brow:0.95,jaw:1.0,lips:0.95,cheek:0.95,chin:1.0}, body:{def:0.8,veins:0.6,neck:0.4,traps:0.5,delts:0.6,chest:0.55,arms:0.55,lats:0.6,thigh:0.55,calf:0.4},
+   guardStyle:'high', handSpd:0.76, bounceMul:1.3, weaveMul:1.0,       // the fastest hands in the roster, the left hook is the money punch
+   pwr:88,spd:98,sta:82,chin:80,def:78,reach:82,iq:82,agg:80},
   // the user's own character — wears the real character.fbx model; physique MEASURED off its skeleton
   // (176cm, short arms → infighter; long legs; slim shoulders). reachL floored at 0.85 (verified combat band).
   {id:'custom', name:'Leon Kraft', nick:'DER IMPORT', style:'Infighter · Slick Counter', init:'LK',
@@ -993,6 +1031,7 @@ const PUNCHES = {
   lbody: {arm:0, name:'Left Body Hook',power:0.82, dur:0.34, stam:8,  stun:0.5, body:true},
   rbody: {arm:1, name:'Right Body Hook',power:1.08,dur:0.40, stam:11, stun:0.6, body:true},
   low:   {arm:0, name:'Low Straight',  power:0.70, dur:0.27, stam:6,  stun:0.5, body:true},
+  cross: {arm:1, name:'Straight Right',power:1.02, dur:0.31, stam:9,  stun:1.15, body:false},
 };
 
 /* -------- ANIMATION POSES (radians per joint [x,y,z]) -------------------------
@@ -1034,11 +1073,15 @@ const PUNCH_ANIM = {
             hips:[0.08,-0.3,0], spine:[0.3,-0.12,0.16], chest:[0.16,-0.12,0], head:[-0.08,0.2,0], knL:[0.28,0,0], knR:[0.2,0,0] }},
   rbody: {peak:0.50, hitU:[0.2,0.74], ext:{ shR:[-1.40,-0.10,0.10], elR:[-0.78,0,0],
             hips:[0.08,-0.7,0], spine:[0.3,-0.2,-0.16], chest:[0.16,-0.2,0], head:[-0.08,0.4,0], knL:[0.2,0,0], knR:[0.3,0,0], thR:[-0.1,-0.22,0] }},
+  // the straight right: rear hip and shoulder drive through, rear heel turns, weight onto the front leg
+  cross: {peak:0.44, hitU:[0.2,0.74], ext:{ shR:[-1.66,-0.12,0.06], elR:[-0.16,0,0],
+            hips:[0,-0.72,0], spine:[0.12,-0.22,0.04], chest:[0.03,-0.28,0], head:[0.02,0.32,-0.04], thR:[-0.12,-0.26,0], knL:[0.16,0,0], knR:[-0.06,0,0] },
+            pre:{ hips:[0,0.18,0], chest:[0,0.1,0], knR:[0.12,0,0] }},
   low:   {peak:0.42, hitU:[0.2,0.74], ext:{ shL:[-1.30,0.08,-0.10], elL:[-0.30,0,0],
             hips:[0.08,0.04,0], spine:[0.26,0.04,0], chest:[0.14,0.04,0], head:[-0.06,0.04,0], knL:[0.3,0,0], knR:[0.24,0,0] }},
 };
 // wind-up of the fist (rig space: forward, up, outward) at the top of the anticipation
-const PUNCH_WIND = { jab:[-0.035,-0.025,0.0], low:[-0.04,-0.06,0.0],
+const PUNCH_WIND = { jab:[-0.035,-0.025,0.0], low:[-0.04,-0.06,0.0], cross:[-0.07,-0.03,0.02],
   lhook:[-0.05,0.0,0.13], rhook:[-0.09,-0.06,0.12], lbody:[-0.05,-0.04,0.12], rbody:[-0.09,-0.05,0.11],
   lupper:[-0.03,-0.17,0.05], rupper:[-0.05,-0.19,0.05] };
 const gloveBoneOf = {jab:'gL', lhook:'gL', lupper:'gL', lbody:'gL', low:'gL', cross:'gR', rhook:'gR', rupper:'gR', rbody:'gR'};
@@ -1511,7 +1554,7 @@ function dmgMasks(geo, flipY){
   return _dmgMasks={D,M};
 }
 function fighterSkin(def, mat0, geo){
-  const W=isLowGfx()?1024:2048, key=def.id+'|'+W;
+  const W=isLowGfx()?1024:2048, key=def.id+'|'+W+'|'+(def.trunk||'')+'|'+((def.kit&&def.kit.trim)||'')+'|'+((def.kit&&def.kit.shoe)||'');
   if(_skinCache[key]) return _skinCache[key];
   if(!_skinBase || _skinBase.W!==W){
     const c=document.createElement('canvas'); c.width=c.height=W; const x=c.getContext('2d',{willReadFrequently:true});
@@ -2259,7 +2302,7 @@ class Boxer{
     const skin2=new SkinMat(Object.assign({color:new THREE.Color(d.skin).multiplyScalar(0.9), roughness:0.48, metalness:0.04}, skinExtra));
     const trunk=new THREE.MeshStandardMaterial({color:d.trunk, roughness:0.5});
     const band=new THREE.MeshStandardMaterial({color:new THREE.Color(d.trunk).multiplyScalar(0.6), roughness:0.5});
-    const glove=new THREE.MeshStandardMaterial({color:this.side<0?0x2f7dff:0xe0383b, roughness:0.38, metalness:0.06});
+    const glove=new THREE.MeshStandardMaterial({color:d.gloveCol || (this.side<0?0x2f7dff:0xe0383b), roughness:0.38, metalness:0.06});
     const boot=new THREE.MeshStandardMaterial({color:0x111319, roughness:0.5});
     const tape=new THREE.MeshStandardMaterial({color:0xe9eaee, roughness:0.7});
     const hairCol=new THREE.Color(d.hairCol||0x121212);
@@ -2835,7 +2878,7 @@ class Boxer{
       let hl=this.down||this.sitting? 0 : (this._idleHeel??0.10), hr=hl;
       if(!this.down && !this.sitting){ const w=this._wShift||0; hl+=Math.max(0,-w)*0.12; hr+=Math.max(0,w)*0.14; }   // heels follow the weight
       if(this.punch && !this.down){ const w=clamp(punchW(this.punch.key, clamp(this.punch.t/this.punch.dur,0,1)),0,1.1);
-        if(/^r/.test(this.punch.key)) hr+=0.42*w; else if(this.punch.key!=='jab') hl+=0.22*w; }
+        if(/^r|cross/.test(this.punch.key)) hr+=0.42*w; else if(this.punch.key!=='jab') hl+=0.22*w; }
       if(this.celebrate) hl=hr=0.25*Math.abs(Math.sin(this.celebrate.t*4.2));
       if(this.evade && this.evade.type==='duck'){ hl+=0.12; hr+=0.12; }
       const k=clamp(dt*18,0,1);
@@ -3759,7 +3802,8 @@ function resolveArrow(){
   // read from the buffer captured at keydown — a fast tap is never lost even if released early
   const L=b['arrowleft'],R=b['arrowright'],U=b['arrowup'],Dn=b['arrowdown'];
   let key=null;
-  if(U&&L) key='lupper'; else if(U&&R) key='rupper';
+  if(L&&R) key='cross';                           // ← + → together = the straight right
+  else if(U&&L) key='lupper'; else if(U&&R) key='rupper';
   else if(Dn&&L) key='lbody'; else if(Dn&&R) key='rbody';
   else if(L) key='lhook'; else if(R) key='rhook';
   else if(U) key='jab';
@@ -3775,6 +3819,7 @@ addEventListener('keydown',e=>{
   if(G.state==='knockdown' && !keys[k] && (isArrow || k===' ')) humanMash(0);
   if(G.state==='between' && G.breakT>0 && (isArrow || k===' ')){ G.breakT=0.01; }   // skip the corner break
   if(k==='e' && G.state==='fight' && !keys[k]) humanClinch(0);                     // tie him up
+  if(k==='r' && G.state==='fight' && !keys[k] && !G.paused) humanPunch(0,'cross');   // the straight right
   if(G.state==='replay' && !keys[k]){ skipReplay(); }                               // any key skips the KO replay
   if(keys[k]){ if(isArrow||['w','a','s','d',' '].includes(k)) e.preventDefault(); return; }
   keys[k]=true;
@@ -3785,7 +3830,7 @@ addEventListener('keydown',e=>{
       const you=player();
       if(you && !you.down && isArrow){
         comboBuf[k]=true;                            // record the press immediately
-        clearTimeout(comboTimer); comboTimer=setTimeout(resolveArrow, 22);  // short combo window = responsive
+        if(!comboTimer) comboTimer=setTimeout(resolveArrow, 45);  // two arrows within 45 ms count as one combo (← + → , ↑ + ← …)
       }
     }
   }
@@ -3852,7 +3897,7 @@ function wireTouch(){
       let key='jab';
       if(len>28){ const a=Math.atan2(-dy,dx)*180/Math.PI;                 // 0 = right, 90 = up
         const sec=Math.round(((a+360)%360)/45)%8;                          // 8 directions
-        key=['rhook','rupper','jab','lupper','lhook','lbody','low','rbody'][sec]; }
+        key=['rhook','rupper','cross','lupper','lhook','lbody','low','rbody'][sec]; }
       humanPunch(0,key);
       const dot=document.createElement('div'); dot.className='t-trail'; dot.style.left=t.clientX+'px'; dot.style.top=t.clientY+'px';
       document.body.appendChild(dot); requestAnimationFrame(()=>{ dot.style.opacity='0'; dot.style.transform='scale(2.4)'; }); setTimeout(()=>dot.remove(),300); }
@@ -3948,14 +3993,15 @@ function pollPads(dt){
         if(hit(2)) humanPunch(slot, body?'low':'jab');
         if(hit(0)) humanPunch(slot, body?'lbody':'lhook');
         if(hit(1)) humanPunch(slot, body?'rbody':'rhook');
-        if(hit(3)) humanPunch(slot, body?'lupper':'rupper');
+        if(hit(3)) humanPunch(slot, body?'rbody':'cross');
+        if(hit(10)||hit(11)) humanPunch(slot, hit(10)?'lupper':'rupper');                // L3 / R3 = uppercuts
         if(hit(7)) humanClinch(slot);
         // TOTAL PUNCH CONTROL: flick the right stick — the direction picks the punch
         const rx=p.axes[2]||0, ry=p.axes[3]||0, m=Math.hypot(rx,ry), rs=PAD.rs[id]||(PAD.rs[id]={armed:true});
         if(m<0.35) rs.armed=true;
         else if(m>0.75 && rs.armed){ rs.armed=false;
           const sec=Math.round(((Math.atan2(-ry,rx)*180/Math.PI)+360)%360/45)%8;     // 0 →, 1 ↗, 2 ↑, 3 ↖, 4 ←, 5 ↙, 6 ↓, 7 ↘
-          const head=['rhook','jab','jab','jab','lhook','lupper','low','rupper'], bod=['rbody','low','low','low','lbody','lbody','low','rbody'];
+          const head=['rhook','cross','jab','jab','lhook','lupper','low','rupper'], bod=['rbody','rbody','low','low','lbody','lbody','low','rbody'];
           humanPunch(slot, (body?bod:head)[sec]); }
       }
     }
@@ -4253,6 +4299,69 @@ function wireNetMirror(){
     netEmit('result',[method, winner? G.fighters.indexOf(winner) : -1, sc||null, G.scores, (G.log||[]).slice(-40), G.round]);
     return _sr(method,winner,loser,sc); };
 }
+/* ============================== STORE & COINS ==============================
+   Every win against the computer (quick fight, Champion Mode, career) pays 100 coins (+50 for a knockout).
+   In the store you buy trunks, gloves and boots for YOUR career boxer; equipped gear is what he wears in the ring. */
+const SHOP={
+  trunks:[ {id:'t_orig',  name:'Original',      price:0,   c:null,      trim:null},
+           {id:'t_black', name:'Schwarz · Gold', price:250, c:'#141414', trim:'#d4a93c'},
+           {id:'t_white', name:'Weiß · Gold',    price:250, c:'#f2efe8', trim:'#c9a24a'},
+           {id:'t_red',   name:'Rot · Weiß',     price:200, c:'#b3141e', trim:'#f2f2f2'},
+           {id:'t_blue',  name:'Royal Blau',     price:200, c:'#1c3faa', trim:'#f2f2f2'},
+           {id:'t_green', name:'Smaragd',        price:300, c:'#0b6b45', trim:'#e8e2c8'},
+           {id:'t_purple',name:'Lila · Gold',    price:450, c:'#4b1f7a', trim:'#e8b84b'},
+           {id:'t_pink',  name:'Pink · Schwarz', price:350, c:'#e0559a', trim:'#141414'},
+           {id:'t_gold',  name:'Champion Gold',  price:900, c:'#d4a93c', trim:'#141414'} ],
+  gloves:[ {id:'g_corner',name:'Ecken-Farbe',    price:0,   c:null},
+           {id:'g_black', name:'Schwarz',        price:150, c:'#1a1a1c'},
+           {id:'g_white', name:'Weiß',           price:150, c:'#f0f0f0'},
+           {id:'g_red',   name:'Klassisch Rot',  price:100, c:'#c4161c'},
+           {id:'g_gold',  name:'Gold',           price:600, c:'#d4a93c'},
+           {id:'g_pink',  name:'Pink',           price:250, c:'#e0559a'},
+           {id:'g_green', name:'Grün',           price:200, c:'#138a4a'},
+           {id:'g_purple',name:'Lila',           price:300, c:'#5b2a9a'} ],
+  shoes: [ {id:'s_orig',  name:'Original',       price:0,   c:null},
+           {id:'s_black', name:'Schwarz',        price:80,  c:'#121316'},
+           {id:'s_white', name:'Weiß',           price:80,  c:'#f0f0f0'},
+           {id:'s_red',   name:'Rot',            price:120, c:'#b3141e'},
+           {id:'s_gold',  name:'Gold',           price:400, c:'#d4a93c'} ]
+};
+const SHOP_CAT={trunks:'Hosen', gloves:'Handschuhe', shoes:'Schuhe'};
+const WALLET=(()=>{ try{ return Object.assign({coins:0, owned:['t_orig','g_corner','s_orig'], eq:{trunks:'t_orig', gloves:'g_corner', shoes:'s_orig'}},
+  JSON.parse(localStorage.getItem('fnlegacy_shop')||'{}')); }catch(e){ return {coins:0, owned:['t_orig','g_corner','s_orig'], eq:{trunks:'t_orig', gloves:'g_corner', shoes:'s_orig'}}; } })();
+function saveWallet(){ try{ localStorage.setItem('fnlegacy_shop', JSON.stringify(WALLET)); }catch(e){} updateCoinBadge(); }
+function shopItem(cat,id){ return SHOP[cat].find(i=>i.id===id)||SHOP[cat][0]; }
+function applyGear(d){                        // career boxer: wear what's equipped
+  const t=shopItem('trunks',WALLET.eq.trunks), g=shopItem('gloves',WALLET.eq.gloves), sh=shopItem('shoes',WALLET.eq.shoes);
+  if(t.c){ d.trunk=t.c; d.kit=Object.assign({}, d.kit||{}, {trim:t.trim}); }
+  if(sh.c) d.kit=Object.assign({}, d.kit||{}, {shoe:sh.c});
+  if(g.c) d.gloveCol=g.c;
+  return d; }
+function awardCoins(n, why){ WALLET.coins+=n; saveWallet(); padToast(`🪙 +${n} Coins${why? ' · '+why : ''}`); }
+function updateCoinBadge(){ let el=$('#coinBadge'); if(!el){ el=document.createElement('div'); el.id='coinBadge'; const t=$('#scrTitle'); if(t) t.appendChild(el); }
+  el.innerHTML=`🪙 <b>${WALLET.coins}</b>`; }
+function showShop(cat){
+  cat=cat||'trunks';
+  const tabs=Object.keys(SHOP).map(k=>`<button class="shop-tab${k===cat?' on':''}" data-cat="${k}">${SHOP_CAT[k]}</button>`).join('');
+  const base=G.career? fighterById(G.career.boxerId) : null;
+  const cards=SHOP[cat].map(it=>{ const own=WALLET.owned.includes(it.id), eq=WALLET.eq[cat]===it.id;
+    const col=it.c || (cat==='trunks'? (base? base.trunk:'#444') : cat==='gloves'? 'linear-gradient(90deg,#2f7dff 50%,#e0383b 50%)' : '#121316');
+    const trim=it.trim? `<i style="background:${it.trim}"></i>` : '';
+    return `<div class="shop-card${eq?' eq':''}"><div class="sw ${cat}" style="background:${col}">${trim}</div>
+      <div class="nm">${it.name}</div>
+      <button class="btn${!own? ' primary':''}" data-id="${it.id}" ${eq?'disabled':''}>${eq? 'Ausgerüstet' : own? 'Ausrüsten' : '🪙 '+it.price}</button></div>`; }).join('');
+  showInfo('STORE',
+    `<div class="shop-top"><div class="shop-coins">🪙 <b>${WALLET.coins}</b> Coins</div>
+       <div class="shop-note">Jeder Sieg gegen den Computer: <b>+100</b> (K.o. <b>+50</b> extra). Die Ausrüstung trägt <b>dein Karriere-Boxer</b>${base? ' ('+base.name+')':''}.</div></div>
+     <div class="shop-tabs">${tabs}</div><div class="shop-grid">${cards}</div>`, []);
+  document.querySelectorAll('.shop-tab').forEach(b=>b.onclick=()=>showShop(b.dataset.cat));
+  document.querySelectorAll('.shop-card button[data-id]').forEach(b=>b.onclick=()=>{
+    const it=shopItem(cat,b.dataset.id);
+    if(!WALLET.owned.includes(it.id)){
+      if(WALLET.coins<it.price){ padToast('Nicht genug Coins — gewinn ein paar Kämpfe! 🥊'); return; }
+      WALLET.coins-=it.price; WALLET.owned.push(it.id); Audio.bell&&Audio.bell(0); }
+    WALLET.eq[cat]=it.id; saveWallet(); showShop(cat); });
+}
 function player(){ return G.fighters[0]; }
 function ai(){ return G.fighters[1]; }
 
@@ -4368,17 +4477,26 @@ function maintainSeparation(a,b){
 // GAME PLANS — every opponent boxes his own way (range, ring movement, work rate, counters, clinch, combos)
 const AI_PLANS={
   swarmer:  {range:'in',  circle:0.25, rate:1.25, counter:0.45, clinch:0.05, body:0.45, cutoff:true, evade:'roll',
-             combos:[['jab','rhook','lhook'],['lbody','lhook'],['rhook','lupper'],['jab','rbody','lhook'],['rupper','lhook'],['lhook','rhook','lbody']]},
+             combos:[['jab','rhook','lhook'],['lbody','lhook'],['rhook','lupper'],['jab','rbody','lhook'],['rupper','lhook'],['lhook','rhook','lbody'],['jab','cross','lhook']]},
   outboxer: {range:'out', circle:1.0,  rate:1.0,  counter:0.55, clinch:0.08, body:0.1, back:true, evade:'pull',
-             combos:[['jab'],['jab','jab'],['jab','rhook'],['jab','jab','rhook'],['jab','low']]},
+             combos:[['jab'],['jab','jab'],['jab','cross'],['jab','jab','cross'],['jab','low'],['jab','cross','lhook']]},
   awkward:  {range:'out', circle:0.5,  rate:0.85, counter:0.3,  clinch:0.6,  body:0.15, lean:true, evade:'pull',
-             combos:[['jab'],['jab','jab'],['jab','rupper'],['rhook'],['jab','rhook']]},
+             combos:[['jab'],['jab','jab'],['jab','cross'],['jab','rupper'],['jab','rhook'],['jab','jab','cross']]},
   volume:   {range:'mid', circle:0.8,  rate:1.35, counter:0.3,  clinch:0.05, body:0.3, evade:'slip',
-             combos:[['jab','rhook','jab'],['jab','low','rhook'],['lhook','rhook','jab'],['jab','jab','rbody'],['jab','rhook','lhook']]},
+             combos:[['jab','cross','jab'],['jab','low','cross'],['lhook','cross','jab'],['jab','jab','rbody'],['jab','cross','lhook']]},
   counter:  {range:'mid', circle:0.35, rate:0.7,  counter:0.85, clinch:0.05, body:0.55, evade:'roll',
-             combos:[['lbody','lhook'],['rhook','lhook'],['jab','rbody'],['rupper','lhook'],['jab','rhook']]},
+             combos:[['lbody','lhook'],['cross','lhook'],['jab','rbody'],['rupper','lhook'],['jab','cross']]},
   pressure: {range:'in',  circle:0.4,  rate:1.1,  counter:0.55, clinch:0.05, body:0.55, cutoff:true, evade:'slip',
-             combos:[['jab','rhook'],['jab','lbody'],['lbody','lhook','rhook'],['jab','jab','rupper'],['jab','rbody','lhook']]},
+             combos:[['jab','cross'],['jab','lbody'],['lbody','lhook','rhook'],['jab','jab','rupper'],['jab','rbody','lhook'],['jab','cross','lbody']]},
+  // Mayweather: sits in the shoulder roll, makes you miss, fires the straight right back
+  shell:    {range:'mid', circle:0.6,  rate:0.75, counter:0.95, clinch:0.1,  body:0.2, back:true, evade:'roll',
+             combos:[['jab'],['cross'],['jab','cross'],['cross','lhook'],['lhook','cross'],['jab','low'],['jab','jab','cross']]},
+  // Pacquiao: in and out, punches in bunches from strange angles, the straight left is the bomb
+  blitz:    {range:'mid', circle:0.9,  rate:1.5,  counter:0.4,  clinch:0.02, body:0.25, evade:'slip',
+             combos:[['jab','cross'],['jab','cross','lhook'],['jab','jab','cross'],['cross','lhook','cross'],['lhook','cross'],['jab','cross','lbody'],['jab','cross','jab','cross']]},
+  // Garcia: long and fast, waits for the opening and throws the left hook
+  sniper:   {range:'mid', circle:0.6,  rate:1.0,  counter:0.7,  clinch:0.05, body:0.15, evade:'pull',
+             combos:[['jab','lhook'],['lhook'],['jab','cross','lhook'],['cross','lhook'],['jab','jab','lhook'],['jab','cross']]},
   balanced: {range:'mid', circle:0.5,  rate:1.0,  counter:0.4,  clinch:0.1,  body:0.3, evade:null,
              combos:[['jab'],['jab','rhook'],['jab','jab','rhook'],['lhook','rhook'],['jab','rbody']]},
 };
@@ -4541,15 +4659,16 @@ function throwAICombo(me,opp,dist,finishing,dc,isCounter){
   const PL=AI_PLANS[D.plan]||AI_PLANS.balanced;
   // what reaches from here (measured): straights everywhere, rear hook + body hooks to ~jab range, lead hook a bit
   // closer, uppercuts only on the inside
-  const fits=k=> k==='jab'||k==='low' || ((k==='rhook'||k==='rbody'||k==='lbody') && dist<Math.min(jabR-0.02,1.12))
-              || (k==='lhook' && dist<inR+0.18) || ((k==='lupper'||k==='rupper') && dist<inR+0.06);
-  if(isCounter){ const c=inside? [['lhook','rhook'],['rupper','lhook'],['lbody','lhook']] : [['jab'],['jab','rhook'],['jab','jab'],['jab','low']];
+  const fits=k=> k==='jab'||k==='low'||k==='cross' || ((k==='rhook'||k==='rbody'||k==='lbody') && dist<Math.min(jabR-0.02,1.12))
+              || (k==='lhook' && dist<Math.min(inR+(D.plan==='sniper'?0.3:0.22),1.1)) || ((k==='lupper'||k==='rupper') && dist<inR+0.06);
+  if(isCounter){ const c=inside? [['lhook','rhook'],['rupper','lhook'],['lbody','lhook']] : [['jab'],['jab','cross'],['jab','jab'],['jab','low']];
     aiCombo=c[(Math.random()*c.length)|0].filter(fits); if(!aiCombo.length) aiCombo=['jab']; fireAICombo(me,0); return; }
   if(!finishing && Math.random()<0.75){                               // his signature combinations
     const opts=PL.combos.map(cb=>cb.filter(fits)).filter(cb=>cb.length);
     if(opts.length){ aiCombo=opts[(Math.random()*opts.length)|0].slice();
       if(Math.random()<PL.body && aiCombo.length<4 && dist<jabR-0.02) aiCombo.push(Math.random()<0.6?'lbody':'rbody');   // dig to the body
       fireAICombo(me,0); return; } }
+  pool.push('cross');                                                 // the 1-2 from anywhere in range
   if(dist<Math.min(jabR-0.02,1.12)) pool.push('rhook','low');         // the right hand needs mid range
   if(inside){ pool.push('lhook','rhook','lupper','rupper');            // the inside game
     if(D.agg>78) pool.push('rhook','rupper'); }
@@ -4653,10 +4772,21 @@ function updateCamera(dt){
         G._cy+=da*(1-Math.exp(-dt*2.4)); G._cl+=(len-G._cl)*(1-Math.exp(-dt*2.0));
         const fwd=new THREE.Vector3(Math.sin(G._cy),0,Math.cos(G._cy)), rg=new THREE.Vector3(-fwd.z,0,fwd.x);
         const L=Math.min(G._cl,1.7), back=1.35+L*0.3;
-        camPos.copy(you.pos).addScaledVector(fwd,-back).addScaledVector(rg,1.6);
-        camPos.x=clamp(camPos.x,-2.35,2.35); camPos.z=clamp(camPos.z,-2.35,2.35);   // stay well inside the ropes
-        camPos.y=G.matTop+1.66;
-        look.copy(you.pos).addScaledVector(fwd,L*0.62).addScaledVector(rg,0.3); look.y=G.matTop+1.32; break; }
+        const cp=new THREE.Vector3().copy(you.pos).addScaledVector(fwd,-back).addScaledVector(rg,1.6); cp.y=G.matTop+1.66;
+        const lk=new THREE.Vector3().copy(you.pos).addScaledVector(fwd,L*0.62).addScaledVector(rg,0.3); lk.y=G.matTop+1.32;
+        // CORNER-PROOF: when that spot is behind the ropes or inside a fighter (backed into a corner), the camera swings
+        // round the pair to the nearest free angle instead of being squashed into the bodies — eased, never snapping
+        const pv=new THREE.Vector3().addVectors(you.pos,opp.pos).multiplyScalar(0.5), lim=2.3;
+        const free=q=>Math.abs(q.x)<=lim && Math.abs(q.z)<=lim && Math.hypot(q.x-you.pos.x,q.z-you.pos.z)>1.0 && Math.hypot(q.x-opp.pos.x,q.z-opp.pos.z)>1.0;
+        const rot=(q,a)=>{ const x=q.x-pv.x, z=q.z-pv.z, c=Math.cos(a), s_=Math.sin(a); return new THREE.Vector3(pv.x+x*c+z*s_, q.y, pv.z-x*s_+z*c); };
+        let best=null, bs=1e9; const cur=G._cOff||0;
+        for(const a of [0,0.3,-0.3,0.6,-0.6,0.9,-0.9,1.2,-1.2,1.5,-1.5,1.85,-1.85,2.2,-2.2,2.6,-2.6]){
+          if(!free(rot(cp,a))) continue; const sc=Math.abs(a)*0.6+Math.abs(a-cur); if(sc<bs){ bs=sc; best=a; } }
+        if(best==null) best=cur;
+        G._cOff=cur+(best-cur)*(1-Math.exp(-dt*2.6));
+        camPos.copy(rot(cp,G._cOff)); look.copy(rot(lk,G._cOff));
+        if(!free(camPos)){ camPos.x=clamp(camPos.x,-lim,lim); camPos.z=clamp(camPos.z,-lim,lim); camPos.y+=0.9; }   // nowhere free: rise above
+        break; }
       case 5: { // close-up cinematic — tighter, lower, more dramatic side angle (menu-selectable 'CLOSE-UP')
         const d=new THREE.Vector3().subVectors(opp.pos, you.pos);
         const len=Math.max(d.length(),0.001);
@@ -5025,6 +5155,7 @@ function endFight(method, winner, loser, sc){
   finishEndFight({method,winner,loser,sc});
 }
 function finishEndFight(p){
+  if(G.mode==='cpu' && p.winner && p.winner===player()) awardCoins(100+((p.method==='KO'||p.method==='TKO')?50:0), (p.method==='KO'||p.method==='TKO')? 'Sieg + K.o.-Bonus' : 'Sieg');
   G.state='result';
   document.body.classList.add('cinema');
   Audio.bell(3); crowdExcite=1;
@@ -5247,7 +5378,7 @@ function pumpPortraits(){
 function releaseLooks(f){                       // free a fighter's sculpt + painted skin unless he's about to fight
   if(!f || f===G.you || f===G.opp || !realGeo0) return;
   for(const lv of [1,2]){ const k='geo|'+f.id+'|'+lv, g=realGeo0.userData[k]; if(g){ g.dispose(); delete realGeo0.userData[k]; } }
-  for(const W of [1024,2048]){ const k=f.id+'|'+W, m=_skinCache[k]; if(m){ m.map&&m.map.dispose(); m.roughnessMap&&m.roughnessMap.dispose(); m.dispose(); delete _skinCache[k]; } }
+  for(const k of Object.keys(_skinCache)){ if(!k.startsWith(f.id+'|')) continue; const m=_skinCache[k]; m.map&&m.map.dispose(); m.roughnessMap&&m.roughnessMap.dispose(); m.dispose(); delete _skinCache[k]; }
 }
 function renderPortrait(f){
   const b=new Boxer(f,-1); scene.remove(b.root);
@@ -5311,7 +5442,7 @@ function fillCtlBar(){
   $('#ctlBar').innerHTML=`<span><kbd>D</kbd> <b>vor</b> <kbd>A</kbd> <b>zurück</b> <kbd>W</kbd><kbd>S</kbd> <b>seitlich</b></span>
    <span><kbd>←</kbd><kbd>→</kbd> <b>Hooks</b></span><span><kbd>↑</kbd> <b>Jab</b></span>
    <span><kbd>←/→</kbd>+<kbd>↑</kbd> <b>Uppercut</b></span><span><kbd>←/→</kbd>+<kbd>↓</kbd> <b>Body</b></span>
-   <span><kbd>↓</kbd> <b>Low</b></span><span><kbd>Space</kbd> <b>Block</b></span><span><kbd>Shift</kbd>+<kbd>A</kbd> <b>zurücklehnen</b> <kbd>Shift</kbd>+<kbd>W</kbd>/<kbd>S</kbd> <b>wegtauchen</b> <kbd>Shift</kbd> <b>abducken</b></span>
+   <span><kbd>↓</kbd> <b>Low</b></span><span><kbd>←</kbd>+<kbd>→</kbd> <b>Gerade</b></span><span><kbd>Space</kbd> <b>Block</b></span><span><kbd>Shift</kbd>+<kbd>A</kbd> <b>zurücklehnen</b> <kbd>Shift</kbd>+<kbd>W</kbd>/<kbd>S</kbd> <b>wegtauchen</b> <kbd>Shift</kbd> <b>abducken</b></span>
    <span><kbd>E</kbd> <b>Clinch</b></span><span><kbd>C</kbd> <b>Cam</b></span><span><kbd>P</kbd> <b>Pause</b></span>`;
 }
 
@@ -5530,7 +5661,7 @@ function careerEnding(){
 function careerBoxerDef(){
   const base=fighterById(G.career.boxerId), b=G.career.boost||{}, d=Object.assign({}, base);
   for(const k of ['pwr','spd','sta','chin','def','iq','agg','reach']) d[k]=clamp((base[k]||70)+(b[k]||0),1,99);
-  return d;
+  return applyGear(d);
 }
 // #6 personalities + trash-talk
 const PERSONA = {
@@ -5540,6 +5671,9 @@ const PERSONA = {
   usyk:   {trait:'Stratege',       taunts:['Ich habe dich längst gelesen.','Technik schlägt Wut. Jedes Mal.']},
   canelo: {trait:'Eiskalt',        taunts:['Ich gehe zum Körper, dann schläfst du ein.','Geduld. Dein Fehler kommt von ganz allein.']},
   inoue:  {trait:'Das Monster',    taunts:['Ein sauberer Treffer reicht mir.','Gleich spürst du, warum sie mich Monster nennen.']},
+  mayweather:{trait:'Unberührbar',  taunts:['Du triffst mich nicht. Niemand trifft mich.','Ich zähle schon mein Geld — und du deine Fehlschläge.']},
+  pacquiao:  {trait:'Wirbelwind',   taunts:['Ich komme aus allen Winkeln.','Du siehst die Linke erst, wenn du am Boden liegst.']},
+  garcia:    {trait:'Blitz',        taunts:['Ein linker Haken. Mehr brauche ich nicht.','Ich bin schneller, als du denken kannst.']},
   custom: {trait:'Der Import',     taunts:['Kurze Arme, kurzer Abend — für dich.','Ich bin nicht hier, um Punkte zu sammeln.']},
 };
 function saveCareer(){ try{ if(G.career) localStorage.setItem('fnlegacy_career', JSON.stringify(G.career)); else localStorage.removeItem('fnlegacy_career'); }catch(e){} }
@@ -5660,6 +5794,9 @@ const REEL=[
   {a:'ali',   b:'tyson', setup:['jab','jab','jab'],    fin:'rhook',  cap:'THE GREATEST · KONTER'},
   {a:'fury',  b:'canelo',setup:['jab','jab','lhook'],  fin:'rupper', cap:'GYPSY KING · UPPERCUT'},
   {a:'usyk',  b:'inoue', setup:['jab','rhook','jab'],  fin:'lhook',  cap:'THE CAT · LINKER HAKEN'},
+  {a:'mayweather', b:'canelo', setup:['jab','jab'],     fin:'cross',  cap:'MONEY · DIE GERADE RECHTE'},
+  {a:'pacquiao', b:'mayweather', setup:['jab','cross','jab'], fin:'cross', cap:'PACMAN · DIE LINKE GERADE'},
+  {a:'garcia', b:'pacquiao', setup:['jab','cross'],     fin:'lhook',  cap:'KINGRY · DER LINKE HAKEN'},
 ];
 let stage=null;
 const _sc={p:new THREE.Vector3(), l:new THREE.Vector3(), init:false};
@@ -5770,16 +5907,19 @@ function wireMenus(){
   $('#btnModes').onclick=()=>showInfo('GAME MODES',
     `<p>Wähle deinen Spielmodus:</p>
      <p><b>Schnellkampf</b> — frei wählbare Boxer & Arena, sofort in den Ring.</p>
-     <p><b>Champion Mode</b> — die Story-Karriere von James Bäumler, Kapitel für Kapitel.</p>`,
+     <p><b>Champion Mode</b> — die Story-Karriere von James Bäumler, Kapitel für Kapitel.</p>
+     <p><b>My Corner</b> — deine eigene Karriere: trainieren, Gegner wählen, zum Weltmeister aufsteigen.</p>
+     <p><b>2 Spieler</b> — lokal mit Controllern oder online mit einem Code gegen einen Freund.</p>
+     <p><b>Store</b> — mit deinen Coins (100 pro Sieg) Hosen, Handschuhe und Schuhe für deinen Karriere-Boxer kaufen.</p>`,
     [ {label:'Schnellkampf', primary:true, fn:()=>{ Audio.init&&Audio.init(); Audio.resume&&Audio.resume(); buildSelectUI(); show('scrSelect'); }},
-      {label:'Champion Mode', fn:()=>startChampion()} ]);
+      {label:'Champion Mode', fn:()=>startChampion()},
+      {label:'My Corner (Karriere)', fn:()=>showCareer()},
+      {label:'2 Spieler', fn:()=>showTwoPlayer()},
+      {label:'Store', fn:()=>showShop('trunks')} ]);
   $('#btnCorner').onclick=()=>showCareer();
   $('#btnOnline').onclick=()=>showTwoPlayer();
-  $('#btnStore').onclick=()=>showInfo('FIGHT NIGHT STORE',
-    `<p>Kein echter Shop, keine Mikrotransaktionen — und das ist Absicht. 💪</p>
-     <p><b>Alle Inhalte sind freigeschaltet:</b></p>
-     <p>${FIGHTERS.map(f=>f.name.replace(/"/g,'')).join(' · ')}</p>
-     <p>${ARENAS.map(a=>a.name).join(' · ')}</p>`, []);
+  $('#btnStore').onclick=()=>showShop('trunks');
+  updateCoinBadge();
   $('#btnCtlBack').onclick=()=>show('scrTitle');
   $('#btnBack').onclick=()=>show('scrTitle');
   $('#btnFight').onclick=()=>{ Audio.init();Audio.resume();
