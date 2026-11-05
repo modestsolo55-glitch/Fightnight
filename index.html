@@ -3952,9 +3952,60 @@ function padToast(t){ let el=$('#padToast'); if(!el){ el=document.createElement(
    ONLINE is peer-to-peer (WebRTC through the free PeerJS service — no server of our own). The HOST runs the whole
    fight; the GUEST sends only his inputs and gets back, 30× a second, the exact pose of every bone, the bars, the
    clock and every sound/caption — so both screens show the same fight. The host boxes in blue, the guest in red. */
-const NET={peer:null, conn:null, code:null, live:false, inp:{f:0,s:0,block:false,dodge:false}, prev:null, cur:null, t:0, lastInp:'', inpT:0};
-function netSend(m){ try{ if(NET.conn && NET.conn.open) NET.conn.send(m); }catch(e){} }
+const NET={peer:null, conn:null, mq:null, mqs:[], via:null, role:null, paired:false, code:null, live:false,
+  inp:{f:0,s:0,block:false,dodge:false}, prev:null, cur:null, t:0, lastInp:'', inpT:0, hbT:0, seen:0};
+// TWO WAYS TO CONNECT: first a DIRECT link between the two devices (WebRTC — fastest). Many routers, school/company
+// networks and phone networks block that, so after a few seconds the game falls back to a RELAY: both devices talk
+// through a free public message server (MQTT over a secure websocket). A little more delay, but it gets through.
+const MQ_URLS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
+function netOpen(){ return NET.via==='p2p'? !!(NET.conn && NET.conn.open) : NET.via==='mq'? !!(NET.mq && NET.mq.connected && NET.paired) : false; }
+function mqTopic(side){ return 'fnlegacy/v1/'+NET.code+'/'+side; }
+function netSend(m){ try{ if(!netOpen()) return;
+  if(NET.via==='p2p') NET.conn.send(m); else NET.mq.publish(mqTopic(NET.role==='host'?'g':'h'), mqEncode(m), {qos:0}); }catch(e){} }
 function netEmit(n,a){ if(G.mode==='host' && !G.reelMode && !stage) netSend({t:'e',n,a}); }   // not the menu backdrop
+const _te=new TextEncoder(), _td=new TextDecoder();
+function mqEncode(m){                         // state packets: 1 | header length | JSON header | raw pose bytes; the rest: 0 | JSON
+  if(m.t==='s'){ const head=_te.encode(JSON.stringify({g:m.g,f:m.f})), pose=new Uint8Array(m.p);
+    const out=new Uint8Array(5+head.length+pose.length); out[0]=1; new DataView(out.buffer).setUint32(1,head.length);
+    out.set(head,5); out.set(pose,5+head.length); return out; }
+  const j=_te.encode(JSON.stringify(m)), out=new Uint8Array(1+j.length); out[0]=0; out.set(j,1); return out; }
+function mqDecode(raw){ const u=raw instanceof Uint8Array? raw : new Uint8Array(raw);
+  if(u[0]===1){ const L=new DataView(u.buffer,u.byteOffset,u.byteLength).getUint32(1), h=JSON.parse(_td.decode(u.subarray(5,5+L)));
+    return {t:'s', p:new Uint8Array(u.subarray(5+L)).buffer, g:h.g, f:h.f}; }   // copy: the relay's Buffer.slice is only a view
+  return JSON.parse(_td.decode(u.subarray(1))); }
+function loadMqtt(){ if(window.mqtt) return Promise.resolve();
+  return new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
+    sc.onload=res; sc.onerror=()=>rej(new Error('Relay-Bibliothek konnte nicht geladen werden')); document.head.appendChild(sc); }); }
+function mqClient(url, sub, willSide){ return new Promise((res,rej)=>{ let ok=false;
+  const c=mqtt.connect(url,{clientId:'fnl_'+Math.random().toString(16).slice(2,12), keepalive:20, reconnectPeriod:0, connectTimeout:6000, clean:true,
+    will:{topic:mqTopic(willSide), payload:mqEncode({t:'bye'}), qos:0, retain:false}});
+  c.on('connect',()=>{ ok=true; c.subscribe(mqTopic(sub),{qos:0},err=>err? rej(err) : res(c)); });
+  c.on('error',()=>{ if(!ok){ try{ c.end(true); }catch(e){} rej(new Error('relay')); } });
+  setTimeout(()=>{ if(!ok){ try{ c.end(true); }catch(e){} rej(new Error('timeout')); } },6500); }); }
+function netRecv(raw, via, client){
+  let m; try{ m = via==='mq'? mqDecode(raw) : raw; }catch(e){ return; }
+  if(!m || !m.t) return;
+  if(via==='mq'){
+    if(m.t==='join' && NET.role==='host'){ if(NET.paired) return; NET.mq=client; netPair('mq'); netSend({t:'welcome'}); return; }
+    if(m.t==='welcome' && NET.role==='guest'){ if(NET.paired) return; netPair('mq'); if(NET._welcome) NET._welcome(true); return; }
+    if(NET.via!=='mq' || client!==NET.mq) return;            // only the relay we paired on
+  } else if(NET.via!=='p2p') return;
+  NET.seen=performance.now();
+  if(m.t==='bye'){ netClosed(); return; }
+  if(m.t==='hb') return;
+  netOnData(m);
+}
+function netPair(via){ NET.via=via; NET.paired=true; NET.seen=performance.now();
+  if(NET.role==='host'){ G.mode='host'; NET.live=true; padToast('✅ Gegner verbunden'+(via==='mq'?' (über Server)':' (direkt)')); buildSelectUI(); show('scrSelect'); }
+  else { G.mode='guest'; NET.live=false; padToast('✅ Verbunden'+(via==='mq'?' (über Server)':' (direkt)')); guestWait(); } }
+function netClosed(){ const was=G.mode; netLeave(true);
+  if(was==='host') padToast('⚠️ Gegner getrennt — die KI übernimmt');
+  else if(was==='guest'){ padToast('⚠️ Verbindung zum Host getrennt'); setTimeout(()=>{ clearFighters(); defaultMenu(); },600); } }
+function netHeartbeat(dt){                       // keep-alive both ways; 20 s of silence = the other side is gone
+  if(!NET.paired) return;
+  if((NET.hbT+=dt)>2){ NET.hbT=0; netSend({t:'hb'}); }
+  if(performance.now()-NET.seen>20000) netClosed();
+}
 function loadPeer(){ if(window.Peer) return Promise.resolve();
   return new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
     sc.onload=res; sc.onerror=()=>rej(new Error('PeerJS konnte nicht geladen werden')); document.head.appendChild(sc); }); }
@@ -3982,42 +4033,58 @@ function netFail(e){ const t=(e&&e.type)||''; netStatus(t==='peer-unavailable'? 
 async function hostOnline(){
   netLeave(true);
   showInfo('ONLINE: SPIEL ERSTELLEN', `<p>Verbinde…</p><p id="netStatus" style="color:var(--muted)"></p>`, [{label:'Abbrechen', fn:()=>{ netLeave(); show('scrTitle'); }}]);
-  try{ await loadPeer(); }catch(e){ netFail(e); return; }
-  const tryOpen=(n)=>{ const code=netCode(); const peer=new Peer('fnlegacy-'+code); NET.peer=peer; NET.code=code;
-    peer.on('open', ()=>showInfo('ONLINE: SPIEL ERSTELLT',
-      `<p>Dein Code:</p><div class="netcode">${code}</div>
-       <p>Dein Freund öffnet das Spiel (denselben Link), wählt <b>2 SPIELER → Online: Beitreten</b> und tippt den Code ein.</p>
-       <p id="netStatus" style="color:var(--muted)">⏳ Warte auf deinen Gegner…</p>`, [{label:'Abbrechen', fn:()=>{ netLeave(); show('scrTitle'); }}]));
-    peer.on('error', e=>{ if(e.type==='unavailable-id' && n<4){ peer.destroy(); tryOpen(n+1); } else netFail(e); });
-    peer.on('connection', c=>{ if(NET.conn){ c.close(); return; }
-      NET.conn=c; c.on('open', ()=>{ G.mode='host'; NET.live=true; netWire(c); padToast('✅ Gegner verbunden');
-        buildSelectUI(); show('scrSelect'); }); }); };
-  tryOpen(0);
+  try{ await Promise.all([loadPeer(), loadMqtt()]); }catch(e){ netFail(e); return; }
+  const code=netCode(); NET.code=code; NET.role='host';
+  // the relay: listen on every server, answer on whichever one the guest comes in through
+  for(const url of MQ_URLS) mqClient(url,'h','g').then(c=>{ if(NET.role!=='host' || NET.code!==code){ c.end(true); return; }
+    NET.mqs.push(c); c.on('message',(t,msg)=>netRecv(msg,'mq',c)); }).catch(()=>{});
+  // the direct link
+  try{ const peer=new Peer('fnlegacy-'+code); NET.peer=peer;
+    peer.on('connection', c=>{ c.on('open', ()=>{ if(NET.paired){ c.close(); return; }
+      NET.conn=c; c.on('data', m=>netRecv(m,'p2p')); c.on('close', ()=>{ if(NET.via==='p2p') netClosed(); }); netPair('p2p'); }); });
+    peer.on('error', e=>console.warn('p2p', e && e.type)); }catch(e){}
+  showInfo('ONLINE: SPIEL ERSTELLT',
+    `<p>Dein Code:</p><div class="netcode">${code}</div>
+     <p>Dein Freund öffnet das Spiel (denselben Link), wählt <b>2 SPIELER → Online: Beitreten</b> und tippt den Code ein.</p>
+     <p id="netStatus" style="color:var(--muted)">⏳ Warte auf deinen Gegner…</p>`, [{label:'Abbrechen', fn:()=>{ netLeave(); show('scrTitle'); }}]);
 }
 async function joinOnline(code){
   if(!/^[A-Z0-9]{4}$/.test(code)){ netStatus('Bitte den 4-stelligen Code eingeben.'); return; }
   netLeave(true); netStatus('⏳ Verbinde…');
-  try{ await loadPeer(); }catch(e){ netFail(e); return; }
-  const peer=new Peer(); NET.peer=peer;
-  peer.on('error', netFail);
-  peer.on('open', ()=>{ const c=peer.connect('fnlegacy-'+code, {reliable:true}); NET.conn=c;
-    c.on('open', ()=>{ G.mode='guest'; NET.live=false; netWire(c); guestWait(); });
-    c.on('error', netFail); });
+  try{ await Promise.all([loadPeer(), loadMqtt()]); }catch(e){ netFail(e); return; }
+  NET.code=code; NET.role='guest';
+  // 1) try the direct link
+  if(!window.__noP2P) try{ const peer=new Peer(); NET.peer=peer; peer.on('error', e=>console.warn('p2p', e && e.type));
+    peer.on('open', ()=>{ const c=peer.connect('fnlegacy-'+code, {reliable:true});
+      c.on('open', ()=>{ if(NET.paired || NET.role!=='guest'){ c.close(); return; }
+        NET.conn=c; c.on('data', m=>netRecv(m,'p2p')); c.on('close', ()=>{ if(NET.via==='p2p') netClosed(); }); netPair('p2p'); }); }); }catch(e){}
+  // 2) not through after 4 s? go through the relay server
+  setTimeout(async ()=>{
+    if(NET.paired || NET.role!=='guest' || NET.code!==code) return;
+    netStatus('⏳ Direkte Verbindung blockiert — verbinde über den Server…');
+    for(const url of MQ_URLS){
+      if(NET.paired || NET.role!=='guest') return;
+      try{ const c=await mqClient(url,'g','h'); if(NET.paired || NET.role!=='guest'){ c.end(true); return; }
+        NET.mq=c; c.on('message',(t,msg)=>netRecv(msg,'mq',c));
+        c.publish(mqTopic('h'), mqEncode({t:'join'}), {qos:0});
+        const ok=await new Promise(r=>{ NET._welcome=r; setTimeout(()=>r(false),5000); });
+        if(ok || NET.paired) return;
+        c.end(true); if(NET.mq===c) NET.mq=null; }catch(e){}
+    }
+    if(!NET.paired) netStatus('❌ Kein Spiel mit diesem Code gefunden. Stimmt der Code? Ist das Spiel beim anderen noch offen?');
+  }, window.__noP2P? 200 : 4000);
 }
 function guestWait(){ showInfo('VERBUNDEN ✓', `<p>Du bist mit dem Host verbunden.</p>
   <p>Der Host wählt die Boxer und die Arena — der Kampf startet dann automatisch auf deinem Bildschirm.</p>
   <p>Du boxt in der <b style="color:#ff6b6b">roten Ecke</b>. Steuerung wie immer (Tastatur, Controller oder Touch).</p>`,
   [{label:'Verbindung trennen', fn:()=>{ netLeave(); show('scrTitle'); }}]); }
 function netLeave(silent){
+  if(NET.paired) netSend({t:'bye'});
   try{ if(NET.conn) NET.conn.close(); }catch(e){} try{ if(NET.peer) NET.peer.destroy(); }catch(e){}
-  NET.conn=null; NET.peer=null; NET.live=false; NET.prev=NET.cur=null;
+  for(const c of [NET.mq, ...NET.mqs]) try{ if(c) c.end(true); }catch(e){}
+  NET.conn=null; NET.peer=null; NET.mq=null; NET.mqs=[]; NET.via=null; NET.role=null; NET.paired=false; NET.code=null;
+  NET.live=false; NET.prev=NET.cur=null; NET._welcome=null;
   if(G.mode==='host'||G.mode==='guest') G.mode='cpu';
-}
-function netWire(c){
-  c.on('data', m=>{ try{ netOnData(m); }catch(e){ console.warn('net',e); } });
-  c.on('close', ()=>{ const was=G.mode; NET.conn=null; NET.live=false;
-    if(was==='host'){ G.mode='cpu'; padToast('⚠️ Gegner getrennt — die KI übernimmt'); }
-    else if(was==='guest'){ G.mode='cpu'; padToast('⚠️ Verbindung zum Host getrennt'); setTimeout(()=>{ clearFighters(); defaultMenu(); },600); } });
 }
 function netOnData(m){
   if(G.mode==='host'){
@@ -4034,8 +4101,8 @@ function netOnData(m){
 // ---- host: stream the fight ----
 function netBones(b){ return b && b.realMesh && b.realMesh.skeleton ? b.realMesh.skeleton.bones : null; }
 function netHostTick(dt){
-  if(!NET.conn || !NET.conn.open || G.state==='menu' || stage) return;
-  NET.t+=dt; if(NET.t<1/30) return; NET.t=0;
+  if(!netOpen() || G.state==='menu' || stage) return;
+  NET.t+=dt; if(NET.t<(NET.via==='mq'? 1/20 : 1/30)) return; NET.t=0;     // a little lighter over the relay
   const L=[G.fighters[0], G.fighters[1], G.referee && G.referee.boxer];
   let n=0; for(const b of L){ const B=netBones(b); n+=9+(B? B.length*4 : 0); }
   const A=new Int16Array(n); let o=0;
@@ -4977,7 +5044,7 @@ function animate(){
   if(G.hitStop>0){ G.hitStop-=dt; gdt=dt*0.10; }
   else if(G.koSlowmo>0){ G.koSlowmo-=dt; gdt=dt*0.28; }   // flash-KO slow-motion
   G.dt=gdt;
-  pollPads(dt);
+  pollPads(dt); netHeartbeat(dt);
   if(G.mode==='guest' && NET.live){ netGuestFrame(dt); updateRopes(dt); updateParticles(dt); updateCrowd(dt); updateCamera(dt);
     Audio.crowd(crowdExcite); if(gradePass) gradePass.uniforms.uTime.value=G.t; if(composer) composer.render(); else renderer.render(scene,camera); return; }
   if(!G.paused){
