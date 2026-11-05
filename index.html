@@ -103,7 +103,8 @@
   /* ===== HUD v2: layered bars like the console game ===== */
   .fb > i, .fb > s, .fb > b{position:absolute;top:0;bottom:0;display:block;text-decoration:none}
   .fb > i{left:0;z-index:2}
-  .fb > s.ghost{left:0;z-index:1;width:100%;background:linear-gradient(180deg,#fff7e0,#ffb347 60%,#e07a12);transition:width .55s ease .5s}
+  .fb > s.ghost{left:0;z-index:1;width:100%;background:linear-gradient(180deg,#fff7e0,#ffb347 60%,#e07a12)}
+  .fb.sta > s.ghost{background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(200,210,225,.55))}   /* stamina trail: pale, never mistaken for the bar */
   .fb > b.cap{right:0;z-index:3;width:0;background:repeating-linear-gradient(-45deg,#6d0f14 0 4px,#3b070a 4px 8px);
     box-shadow:inset 2px 0 0 rgba(255,80,80,.55);transition:width .4s}
   .fnside2.right .fb > i, .fnside2.right .fb > s.ghost{left:auto;right:0}
@@ -2479,6 +2480,7 @@ class Boxer{
     this.lastPattern[key]=(this.lastPattern[key]||0)+1;
     this.threwZone[def.body?'body':'head']++;          // remember where this fighter attacks (the AI reads it)
     if(def.power>0.85 && Audio.ready && Math.random()<0.4) Audio.grunt(0.38, false);   // effort grunt on a hard shot
+    if(this===ai() && G.mode==='cpu'){ const rec=this._recent||(this._recent=[]); rec.push(key); if(rec.length>6) rec.shift(); aiAimRoll(this, player(), key); }
     return true;
   }
   // hit reaction driven by the REAL impact direction: push = unit vector (rig space) from glove to target.
@@ -4100,7 +4102,7 @@ function netLeave(silent){
   try{ if(NET.conn) NET.conn.close(); }catch(e){} try{ if(NET.peer) NET.peer.destroy(); }catch(e){}
   for(const c of [NET.mq, ...NET.mqs]) try{ if(c) c.end(true); }catch(e){}
   NET.conn=null; NET.peer=null; NET.mq=null; NET.mqs=[]; NET.via=null; NET.role=null; NET.paired=false; NET.code=null;
-  NET.live=false; NET.prev=NET.cur=null; NET._welcome=null;
+  NET.live=false; NET.prev=NET.cur=null; NET.buf=[]; NET.off=null; NET._welcome=null;
   if(G.mode==='host'||G.mode==='guest') G.mode='cpu';
 }
 function netOnData(m){
@@ -4112,7 +4114,8 @@ function netOnData(m){
     return; }
   if(G.mode!=='guest') return;
   if(m.t==='start') guestStart(m);
-  else if(m.t==='s'){ m.at=performance.now(); NET.prev=NET.cur||m; NET.cur=m; }
+  else if(m.t==='s'){ m.at=performance.now(); NET.cur=m; const buf=NET.buf||(NET.buf=[]); buf.push(m); if(buf.length>40) buf.shift();
+    const off=m.at-(m.g.ht||m.at); NET.off = NET.off==null? off : Math.min(off, NET.off+0.5); }   // host→local clock (slowly forgets old minima)
   else if(m.t==='e') guestEvent(m.n, m.a||[]);
 }
 // ---- host: stream the fight ----
@@ -4121,18 +4124,26 @@ function netHostTick(dt){
   if(!netOpen() || G.state==='menu' || stage) return;
   NET.t+=dt; if(NET.t<(NET.via==='mq'? 1/20 : 1/30)) return; NET.t=0;     // a little lighter over the relay
   const L=[G.fighters[0], G.fighters[1], G.referee && G.referee.boxer];
-  let n=0; for(const b of L){ const B=netBones(b); n+=9+(B? B.length*4 : 0); }
+  let n=0; for(const b of L){ const B=netBones(b); n+=9+(B? B.length*4+15 : 0); }
   const A=new Int16Array(n); let o=0;
   for(const b of L){ const B=netBones(b);
     if(!b || !B){ o+=9; continue; }
+    b.root.updateMatrixWorld(true);
     A[o++]=1; const P=b.root.position, Q=b.root.quaternion;
     A[o++]=Math.round(P.x*1000); A[o++]=Math.round(P.y*1000); A[o++]=Math.round(P.z*1000);
     A[o++]=Math.round(Q.x*32767); A[o++]=Math.round(Q.y*32767); A[o++]=Math.round(Q.z*32767); A[o++]=Math.round(Q.w*32767);
     A[o++]=B.length;
-    for(const bn of B){ const q=bn.quaternion; A[o++]=Math.round(q.x*32767); A[o++]=Math.round(q.y*32767); A[o++]=Math.round(q.z*32767); A[o++]=Math.round(q.w*32767); } }
+    for(const bn of B){ const q=bn.quaternion; A[o++]=Math.round(q.x*32767); A[o++]=Math.round(q.y*32767); A[o++]=Math.round(q.z*32767); A[o++]=Math.round(q.w*32767); }
+    // gloves, relative to the fighter's root: 1 flag + 2 × (position mm, quaternion)
+    const gl=b.j && b.j.gL && b.j.gR; A[o++]=gl?1:0;
+    for(const g of [b.j&&b.j.gL, b.j&&b.j.gR]){
+      if(gl){ _nm[0].copy(b.root.matrixWorld).invert().multiply(g.matrixWorld).decompose(_nv,_nq[0],_ns);
+        A[o++]=Math.round(_nv.x*1000); A[o++]=Math.round(_nv.y*1000); A[o++]=Math.round(_nv.z*1000);
+        A[o++]=Math.round(_nq[0].x*32767); A[o++]=Math.round(_nq[0].y*32767); A[o++]=Math.round(_nq[0].z*32767); A[o++]=Math.round(_nq[0].w*32767); }
+      else o+=7; } }
   const sc=f=>f? [f.headHP,f.headMax??100,f.bodyHP,f.bodyMax??100,f.stamina,f.stun,f.knockdowns||0,f.down?1:0,f.swelling||0,f.cut||0,
     f.dmgZone.lEye,f.dmgZone.rEye,f.dmgZone.nose,f.dmgZone.body].map(v=>Math.round(v*100)/100) : null;
-  const g={st:G.state, clk:Math.ceil(G.clock||0), rd:G.round, cx:Math.round(crowdExcite*100)/100, cnt:G.countShown||0,
+  const g={ht:Math.round(performance.now()), st:G.state, clk:Math.ceil(G.clock||0), rd:G.round, cx:Math.round(crowdExcite*100)/100, cnt:G.countShown||0,
     kd: G.knockdownActor? G.fighters.indexOf(G.knockdownActor) : -1, mr:Math.round((G.mashRatio||0)*100)/100, pz:G.paused?1:0};
   if(G.state==='ringwalk' && G.rwCam) g.rw=[G.rwCam.x,G.rwCam.y,G.rwCam.z,(G.rwLook||G.rwCam).x,(G.rwLook||G.rwCam).y,(G.rwLook||G.rwCam).z];
   if(G.replayFocus) g.rf=[G.replayFocus.x,G.replayFocus.z];
@@ -4149,15 +4160,21 @@ async function guestStart(m){
   G.fighters=[mb,hb]; G.referee=buildReferee(); G.round=1; G.scores=[]; G.log=[]; G.state='ringwalk';
   buildHUDNames(); $('#rdTot').textContent=G.rounds; $('#statsPanel').classList.remove('on');
   $('#hud').classList.add('on'); touchVis(true); document.body.classList.add('cinema');
-  NET.prev=NET.cur=null; NET.live=true;
+  NET.prev=NET.cur=null; NET.buf=[]; NET.off=null; NET.live=true;
 }
-const _nq=[new THREE.Quaternion(), new THREE.Quaternion()];
+const _nq=[new THREE.Quaternion(), new THREE.Quaternion()], _nm=[new THREE.Matrix4(), new THREE.Matrix4()], _nv=new THREE.Vector3(), _ns=new THREE.Vector3();
 function netGuestFrame(dt){
   // input → host (only when it changes, plus a heartbeat)
   { const i=humanInput(0), key=[i.f.toFixed(2),i.s.toFixed(2),i.block?1:0,i.dodge?1:0].join(); NET.inpT+=dt;
     if(key!==NET.lastInp || NET.inpT>0.25){ NET.lastInp=key; NET.inpT=0; netSend({t:'i', f:+i.f.toFixed(2), s:+i.s.toFixed(2), b:i.block?1:0, d:i.dodge?1:0}); } }
-  const S=NET.cur; if(!S) return; const P=NET.prev||S;
-  const a=clamp((performance.now()-S.at)/Math.max(16, S.at-(P.at||S.at) || 33),0,1);   // play back one packet behind: smooth
+  const buf=NET.buf||[]; if(!buf.length) return;
+  // JITTER BUFFER: packets arrive unevenly over the internet; replay them on the host's own clock, a little behind,
+  // interpolating between the two snapshots around that moment — smooth instead of stutter-and-jump
+  const rt=performance.now()-(NET.off||0)-(NET.via==='mq'? 140 : 80);
+  let i1=buf.findIndex(m=>(m.g.ht||0)>=rt); if(i1<0) i1=buf.length-1; const i0=Math.max(0,i1-1);
+  const S=buf[i1], P=buf[i0], span=(S.g.ht||0)-(P.g.ht||0);
+  const a= span>0? clamp((rt-(P.g.ht||0))/span,0,1) : 1;
+  if(i0>2) buf.splice(0,i0-2);
   const As=new Int16Array(S.p), Ap=new Int16Array(P.p), same=As.length===Ap.length;
   const L=[G.fighters[1], G.fighters[0], G.referee && G.referee.boxer];             // host order: [host(blue), guest(red), ref]
   let o=0;
@@ -4173,9 +4190,17 @@ function netGuestFrame(dt){
         _nq[0].set(A0[j],A0[j+1],A0[j+2],A0[j+3]).normalize(); _nq[1].set(As[j],As[j+1],As[j+2],As[j+3]).normalize();
         B[k].quaternion.copy(_nq[0]).slerp(_nq[1],a); }
       b.pos.set(b.root.position.x, 0, b.root.position.z);
+      { const fw=_nv.set(0,0,1).applyQuaternion(b.root.quaternion); if(!b.down) b.facing=Math.atan2(fw.x, fw.z); }
       b.root.updateMatrixWorld(true);
+      const go=o+9+n*4;
+      if(As[go] && b.j && b.j.gL && b.j.gR){ [b.j.gL,b.j.gR].forEach((g,gi)=>{ const q=go+1+gi*7;
+        _nv.set((A0[q]+(As[q]-A0[q])*a)/1000, (A0[q+1]+(As[q+1]-A0[q+1])*a)/1000, (A0[q+2]+(As[q+2]-A0[q+2])*a)/1000);
+        _nq[0].set(A0[q+3],A0[q+4],A0[q+5],A0[q+6]).normalize(); _nq[1].set(As[q+3],As[q+4],As[q+5],As[q+6]).normalize(); _nq[0].slerp(_nq[1],a);
+        _nm[0].compose(_nv,_nq[0],_ns.set(1,1,1)).premultiply(b.root.matrixWorld);      // world = root · (glove in root space)
+        g.parent.updateWorldMatrix(true,false);
+        _nm[1].copy(g.parent.matrixWorld).invert().multiply(_nm[0]).decompose(g.position,g.quaternion,g.scale); }); }
     }
-    o+=9+n*4;
+    o+=9+n*4+15;
   }
   // bars, damage and the match state
   const sc=[S.f[1], S.f[0]];
@@ -4400,7 +4425,7 @@ function updateAI(dt){
   // the jab, pressure fighters walk you onto the inside where hooks and uppercuts land
   const {jabR, inR}=aiRanges(me);
   const PL=AI_PLANS[D.plan]||AI_PLANS.balanced;
-  const wantRange = PL.range==='in'? inR+0.06 : PL.range==='out'? jabR-0.03 : jabR-0.12;
+  const wantRange = PL.range==='in'? inR+0.06 : PL.range==='out'? jabR-0.08 : jabR-0.2;   // mid-range men work where the hooks land
   const fwd=new THREE.Vector3(Math.sin(me.facing),0,Math.cos(me.facing));
   const rightV=new THREE.Vector3(fwd.z,0,-fwd.x);
   let mv=new THREE.Vector3();
@@ -4430,7 +4455,7 @@ function updateAI(dt){
     mv.add(rightV.clone().multiplyScalar(circ*0.7));
   } else {
     const inF = PL.range==='in', outF = PL.range==='out';
-    if(dist>wantRange+(inF?0.04: outF?0.06:0.18)) mv.add(fwd.clone().multiplyScalar(0.9+aggr*0.4+(inF?0.3:0)));   // out-boxers step in to jab, then out
+    if(dist>wantRange+(inF?0.04: outF?0.06:0.08)) mv.add(fwd.clone().multiplyScalar(0.9+aggr*0.4+(inF?0.3:0)));   // out-boxers step in to jab, then out
     else if(dist<wantRange-(outF?0.08:0.22)) mv.sub(fwd).multiplyScalar(outF?1.0:0.7);     // too close, reset spacing
     // lateral circling — out-boxers move more
     let circAmp=(0.15+PL.circle*0.75)*(0.6+iq*0.4);
@@ -4509,23 +4534,23 @@ function updateAI(dt){
 }
 let aiCombo=[];
 // punch ranges scale with the fighter's real size (measured: a 1.76 m boxer's jab lands to ~0.95 m)
-function aiRanges(b){ const h=(b.def.heightM||1.8)/1.76; return { jabR:1.18*h, inR:0.86*h }; }   // measured with the step-in: jab hits to ~1.36, rear hook ~1.24, uppercuts ~1.0
+function aiRanges(b){ const h=1+((b.def.heightM||1.8)/1.76-1)*0.5; return { jabR:1.18*h, inR:0.86*h }; }   // measured with the step-in: jab hits to ~1.36, rear hook ~1.24, uppercuts ~1.0
 function throwAICombo(me,opp,dist,finishing,dc,isCounter){
   dc=dc||DIFF[G.difficulty]||DIFF[1];
   const D=me.def, {jabR,inR}=aiRanges(me), inside=dist<inR+0.05; const pool=['jab','jab'];
   const PL=AI_PLANS[D.plan]||AI_PLANS.balanced;
   // what reaches from here (measured): straights everywhere, rear hook + body hooks to ~jab range, lead hook a bit
   // closer, uppercuts only on the inside
-  const fits=k=> k==='jab'||k==='low' || ((k==='rhook'||k==='rbody'||k==='lbody') && dist<jabR-0.02)
+  const fits=k=> k==='jab'||k==='low' || ((k==='rhook'||k==='rbody'||k==='lbody') && dist<Math.min(jabR-0.02,1.12))
               || (k==='lhook' && dist<inR+0.18) || ((k==='lupper'||k==='rupper') && dist<inR+0.06);
-  if(isCounter){ const c=inside? [['lhook','rhook'],['rupper','lhook'],['lbody','lhook']] : [['rhook'],['jab','rhook'],['rhook','lhook']];
+  if(isCounter){ const c=inside? [['lhook','rhook'],['rupper','lhook'],['lbody','lhook']] : [['jab'],['jab','rhook'],['jab','jab'],['jab','low']];
     aiCombo=c[(Math.random()*c.length)|0].filter(fits); if(!aiCombo.length) aiCombo=['jab']; fireAICombo(me,0); return; }
   if(!finishing && Math.random()<0.75){                               // his signature combinations
     const opts=PL.combos.map(cb=>cb.filter(fits)).filter(cb=>cb.length);
     if(opts.length){ aiCombo=opts[(Math.random()*opts.length)|0].slice();
       if(Math.random()<PL.body && aiCombo.length<4 && dist<jabR-0.02) aiCombo.push(Math.random()<0.6?'lbody':'rbody');   // dig to the body
       fireAICombo(me,0); return; } }
-  if(dist<jabR-0.02) pool.push('rhook','low');                        // long shots from the outside
+  if(dist<Math.min(jabR-0.02,1.12)) pool.push('rhook','low');         // the right hand needs mid range
   if(inside){ pool.push('lhook','rhook','lupper','rupper');            // the inside game
     if(D.agg>78) pool.push('rhook','rupper'); }
   if((D.style.includes('Body')||D.style.includes('Bodywork')) && dist<jabR && Math.random()<0.6) pool.push(Math.random()<0.5?'lbody':'rbody');
@@ -4536,9 +4561,30 @@ function throwAICombo(me,opp,dist,finishing,dc,isCounter){
   aiCombo=[]; for(let i=0;i<len;i++) aiCombo.push(pool[(Math.random()*pool.length)|0]);
   fireAICombo(me,0);
 }
+// AI ACCURACY: like in the console game the computer connects with roughly a third to a half of its punches —
+// more against a hurt or cornered man, less against one who moves his feet, slips or blocks, and less when it is
+// tired or throwing the same shot again. A miss is aimed beside the head, so it really sails past.
+function aiAimRoll(me, opp, key){
+  if(!me.punch || !opp) return;
+  const dc=DIFF[G.difficulty]||DIFF[1], D=PUNCHES[key];
+  let acc = key==='jab'? 0.52 : key==='low'? 0.52 : D.body? 0.5 : D.up? 0.36 : 0.42;
+  acc *= clamp(0.62+0.38*dc.skill, 0.5, 1.2);
+  const mv=opp.moveVel? Math.hypot(opp.moveVel.x,opp.moveVel.z) : 0; acc -= clamp(mv*0.16,0,0.18);   // a moving target
+  if(opp.evade) acc -= 0.25;
+  acc += clamp((opp.stun-40)/60,0,0.25);                                   // a hurt man can't get out of the way
+  if(Math.max(Math.abs(opp.pos.x),Math.abs(opp.pos.z))>G.ringHalf-0.35) acc += 0.08;   // trapped on the ropes
+  acc -= clamp((40-me.stamina)/100,0,0.2);                                 // arm-weary
+  const rec=me._recent||[]; if(rec.length>=2 && rec[rec.length-2]===key) acc -= 0.12;   // you saw that one coming
+  if(Math.random() < clamp(acc,0.15,0.9)) return;
+  const P=me.punch, v=P.v||(P.v={spd:1,arc:1,body:1,cock:1,elbow:0,aimX:0,aimY:0});
+  v.aimX=(v.aimX||0)+(Math.random()<0.5?-1:1)*rand(0.24,0.34); v.aimY=(v.aimY||0)+rand(-0.04,0.12); v.miss=true;
+}
 function fireAICombo(me, i){
   if(i>=aiCombo.length||me.down||me.blocking) return;
-  const k=aiCombo[i]; me.startPunch(k);
+  let k=aiCombo[i];
+  const rec=me._recent||(me._recent=[]);
+  if(k!=='jab' && rec.slice(-3).filter(x=>x===k).length>=2) k='jab';      // a third right hook in a row? throw the jab
+  me.startPunch(k);
   setTimeout(()=>fireAICombo(me,i+1), (PUNCHES[k].dur*1000)+rand(50,160));
 }
 
@@ -4638,6 +4684,13 @@ function updateCamera(dt){
 }
 
 /* ================================ HUD ===================================== */
+const _ghost={};
+function ghostBar(el, id, v){ if(!el) return; const g=_ghost[id]||(_ghost[id]={v, hold:0, t:performance.now()});
+  const now=performance.now(), dt=Math.min(0.1,(now-g.t)/1000); g.t=now;
+  if(v>=g.v){ g.v=v; g.hold=0; }
+  else if(g.v-v>0.4){ if((g.hold+=dt)>0.5) g.v=Math.max(v, g.v-dt*45); }   // a real loss: hold, then drain at 45 %/s
+  else g.v=v;                                                             // tiny drift (regen/step): just follow
+  el.style.width=g.v.toFixed(1)+'%'; }
 function refreshHUD(){
   // Fight Night HUD: STAMINA (gold→red) + HEALTH (combined head/body) per corner
   const you=player(), opp=ai(); if(!you||!opp) return;
@@ -4651,9 +4704,10 @@ function refreshHUD(){
   setBar('#stL', you.stamina,'sta'); setBar('#stR', opp.stamina,'sta');
   setBar('#hpL', hp(you),'hp');      setBar('#hpR', hp(opp),'hp');
   for(const [f,k] of [[you,'L'],[opp,'R']]){
-    const h=clamp(hp(f),0,100), w=h+'%';
-    const g=$('#hg'+k); if(g && g.style.width!==w) g.style.width=w;              // the white/orange trail eats down after a beat
-    const sg=$('#sg'+k), sw=clamp(f.stamina,0,100)+'%'; if(sg && sg.style.width!==sw) sg.style.width=sw;
+    const h=clamp(hp(f),0,100);
+    // the white/orange trail: holds what you just lost for half a second, then eats down to the real value
+    // (driven here, not by a CSS transition — the bars change every frame, which kept restarting the transition)
+    ghostBar($('#hg'+k), 'h'+k, h); ghostBar($('#sg'+k), 's'+k, clamp(f.stamina,0,100));
     const c=$('#hc'+k); if(c) c.style.width=clamp(100-mx(f),0,100)+'%';
     const hb=$('#hb'+k); if(hb) hb.classList.toggle('low', h<22);
     const kd=$('#kd'+k), n=f.knockdowns||0; if(kd && kd.childElementCount!==n) kd.innerHTML='<i></i>'.repeat(n);
