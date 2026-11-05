@@ -3747,7 +3747,9 @@ function resolveArrow(){
   else if(Dn) key='low';                          // ↓ alone = quick low straight to the body
   if(key) humanPunch(0,key);
 }
+const typing=e=>{ const t=e.target; return !!t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.isContentEditable); };
 addEventListener('keydown',e=>{
+  if(typing(e)){ if(e.key==='Enter' && e.target.id==='joinCode') joinOnline((e.target.value||'').trim().toUpperCase()); return; }   // typing a code: no game keys
   const k=e.key.toLowerCase();
   const isArrow=k.startsWith('arrow');
   // get-up mash: count only FRESH presses (not OS key-auto-repeat, so you can't just hold a key) of an arrow / space while the player is down
@@ -3770,7 +3772,7 @@ addEventListener('keydown',e=>{
   }
   if(isArrow||['w','a','s','d',' ','shift','c','p'].includes(k)) e.preventDefault();
 },{passive:false});
-addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+addEventListener('keyup',e=>{ if(typing(e)) return; keys[e.key.toLowerCase()]=false; });
 
 /* ---- touch controls (phones) ---- */
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
