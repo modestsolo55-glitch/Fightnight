@@ -93,6 +93,9 @@
   .fnhudmid .kd{font-size:10px;color:var(--accent);letter-spacing:1px;height:12px;margin-top:1px;text-shadow:0 1px 4px #000}
   body.touch #ctlBar{display:none!important}          /* keyboard hints are noise on a phone — touch pads take over */
   .sp-cards{margin-top:8px;border-top:1px solid #2a3647;padding-top:7px}
+  .sp-tip:not(:empty){margin-top:9px;border-top:1px solid #2a3647;padding-top:8px;text-align:left}
+  .sp-tip .tp-h{font-family:var(--disp);font-weight:900;font-size:13px;letter-spacing:2px;color:var(--accent)}
+  .sp-tip .tp-t{font-size:13px;line-height:1.45;color:#dfe6ee;margin-top:3px} .sp-tip b{color:#fff}
   .sp-cards .sc-h{font-size:10px;letter-spacing:2px;color:var(--muted);font-weight:800;margin-bottom:4px}
   .sp-cards .sc-r{display:grid;grid-template-columns:1fr auto auto;gap:10px;font-size:12px;align-items:center}
   .sp-cards .sc-r b{font-variant-numeric:tabular-nums} .sp-cards .sc-r em{font-style:normal;color:var(--accent);font-weight:800;min-width:70px;text-align:right}
@@ -622,7 +625,7 @@
     box-shadow:0 0 12px var(--red);animation:liveblink 1.1s infinite}
   #replayTag .rskip{font-size:9px;letter-spacing:2px;color:var(--muted);font-weight:800;
     border-left:1px solid #2a3647;padding-left:9px;margin-left:2px}
-  #statsPanel{position:fixed;left:50%;top:56%;transform:translate(-50%,-50%);z-index:45;display:none;
+  #statsPanel{position:fixed;left:50%;top:52%;transform:translate(-50%,-50%);z-index:45;display:none;max-height:84vh;overflow:auto;
     width:min(420px,90vw);background:linear-gradient(180deg,rgba(10,15,22,.88),rgba(5,8,13,.94));
     border:1px solid #26334a;border-top:3px solid var(--accent);border-radius:12px;padding:14px 18px;
     backdrop-filter:blur(6px);box-shadow:0 16px 50px rgba(0,0,0,.6)}
@@ -847,6 +850,7 @@
   <div class="sp-title">◢ PUNCH STATS · RUNDE <span id="spRound">1</span></div>
   <div class="sp-grid" id="spGrid"></div>
   <div class="sp-cards" id="spCards"></div>
+  <div class="sp-tip" id="spTip"></div>
   <div class="sp-skip" id="spSkip"></div>
 </div>
 
@@ -2609,21 +2613,34 @@ class Boxer{
     this.bob += dt*(this.blocking?6:9)*this._tempo*(this.stamina<40?0.85:1);
     const bounce=Math.sin(this.bob);
     if(!this.down){
-      // real boxer footwork: a light, springy bounce on the balls of the feet (heels lift, never flat-footed)
-      const spring=Math.abs(bounce);                 // 0..1, double-time so it reads as a 2–3 Hz bounce
-      // GROUNDED: the body never leaves the canvas — the rhythm lives in the heels (lifting off the balls of
-      // the feet raises the body a touch, toes stay planted) and in the knees. Ali bounces more, Fury plants.
-      this.bobY = 0;
-      this._idleHeel = (this.blocking? 0.04 : 0.07 + spring*0.10*Math.min(1.6,this.def.bounceMul||1));
-      const pump=1-spring;                            // knees bend on the down-beat, extend at the top = the spring
-      r.knL[0]+=0.03+pump*0.09+bounce*0.018; r.knR[0]+=0.03+pump*0.09-bounce*0.018;
-      r.thL[0]+=pump*0.05; r.thR[0]+=pump*0.05;       // hips dip and rise with the bounce
+      // REAL FOOTWORK: a springy bounce on the balls of the feet. The light-footed men (Ali, Usyk, Inoue, Tyson)
+      // really leave the canvas for a split second on every beat — a little hop, knees absorbing every landing;
+      // the big plodders (Fury, Canelo) stay grounded and only rise onto their toes. Nobody bounces non-stop:
+      // the rhythm breaks now and then, a tired man goes flat-footed, a hurt man's legs go to jelly.
+      const spring=Math.abs(bounce);                 // 0..1, double-time: a ~2.5 Hz bounce
+      const bm=Math.min(1.7,this.def.bounceMul||1), fresh=clamp((this.stamina-22)/45,0,1), shaky=clamp((this.stun-40)/50,0,1);
+      if(!this._hopT || (this._hopT-=dt)<=0){                                     // breaks in the rhythm
+        const dancer=bm>1.15; this._hopOn = Math.random() < (dancer? 0.82 : 0.45) ? 1 : 0;
+        this._hopT = this._hopOn? rand(2.5,6) : rand(0.8,2.2); }
+      const busy=this.blocking||this.punch||this.evade||G.clinch||this.sitting||this.reaction;
+      const hopWant = busy? 0 : clamp((bm-0.7)/0.85,0,1)*fresh*(1-shaky)*(this._hopOn??1)*(this.moving>0.4? 0.55 : 1);
+      this._hopA=(this._hopA||0)+(hopWant-(this._hopA||0))*clamp(dt*(hopWant>(this._hopA||0)?2.5:6),0,1);
+      const air=Math.pow(spring,3);                   // short airtime at the top of each beat, long ground contact
+      this.bobY = air*(0.012+0.022*clamp(bm-0.7,0,1))*this._hopA;
+      this._idleHeel = this.blocking? 0.04 : (0.05 + spring*0.10*bm)*(0.35+0.65*fresh) + air*0.16*this._hopA;   // flat-footed when gassed
+      const pump=1-spring;                            // knees bend on the down-beat (the landing), extend into the hop
+      const kp=0.09+0.09*this._hopA;
+      r.knL[0]+=0.04+pump*kp+bounce*0.02; r.knR[0]+=0.04+pump*kp-bounce*0.02;
+      r.thL[0]+=pump*(0.05+0.04*this._hopA); r.thR[0]+=pump*(0.05+0.04*this._hopA);   // hips sink and rise with it
+      r.spine[0]-=air*0.03*this._hopA;                // the chest lifts in the air
       r.spine[0]+=bounce*0.02; r.head[0]+=Math.sin(this.bob*0.7)*0.025;
       // gentle forward/back rock (added along facing in syncRoot) — the in-and-out rhythm of a boxer's stance
       // weight shifts between the front and back foot through the KNEES and hips (feet stay put — no gliding)
       this.bobFwd = 0;
       const ws=Math.sin(this.bob*0.5)*(this.blocking?0.4:1);
-      r.knL[0]+=ws*0.07; r.knR[0]-=ws*0.05; r.spine[0]+=ws*0.03; r.hips[0]+=ws*0.02;
+      r.knL[0]+=ws*0.09; r.knR[0]-=ws*0.07; r.spine[0]+=ws*0.03; r.hips[0]+=ws*0.02;
+      r.hips[1]+=ws*0.04; r.hips[2]+=ws*0.025;        // the pelvis turns and shifts with the weight
+      this._wShift=ws;                                // weight forward → rear heel up; weight back → lead heel up
       // breathing — chest & shoulders rise/fall on a slow cycle, heavier when gassed; plus a slow watchful head sway
       const breath=Math.sin(this.bob*0.42), heavy=this.stamina<45?1.8:1;
       r.chest[0]+= breath*0.028*heavy; r.spine[0]+= breath*0.016*heavy;
@@ -2668,8 +2685,9 @@ class Boxer{
       const th=stepL? r.thL : r.thR, kn=stepL? r.knL : r.knR;
       // boxers SLIDE their feet: short reach, low knee lift — even lower when backing up or stumbling
       const bk=df<0? 0.55 : 1, reach=clamp(sp*0.17,0.06,0.24)*bk;
-      th[0]+= -df*reach*lift; th[2]+= ds*0.16*lift; kn[0]+= (0.10+0.12*bk)*lift;
-      const st=stepL? r.knR : r.knL; st[0]+= 0.06*lift;                    // the planted leg loads
+      th[0]+= -df*reach*lift; th[2]+= ds*0.16*lift; kn[0]+= (0.16+0.15*bk)*lift;
+      const st=stepL? r.knR : r.knL; st[0]+= 0.10*lift;                    // the planted leg loads and pushes
+      (stepL? r.thR : r.thL)[0]+=0.04*lift;
       r.spine[0]+=0.02*lift; r.hips[2]+=(stepL?-1:1)*0.035*lift;           // weight shifts over the planted foot
     }
     this.moving*=Math.max(0,1-dt*8);
@@ -2713,7 +2731,13 @@ class Boxer{
         r.spine[2]+=w*0.11*rocked; r.head[2]+=w*0.18*rocked; r.head[0]+=0.12*rocked;
         r.hips[2]+=w*0.07*rocked;
         r.shL[0]+=0.6*rocked; r.shR[0]+=0.6*rocked; r.elL[0]+=0.28*rocked; r.elR[0]+=0.28*rocked;  // guard sags
-        r.knL[0]+=0.20*rocked; r.knR[0]+=0.16*rocked; }                                            // legs unsteady
+        // JELLY LEGS: the knees give unevenly, one then the other, and he takes little stumbling steps
+        r.knL[0]+=0.20*rocked + Math.max(0,Math.sin(this.bob*1.3))*0.26*rocked;
+        r.knR[0]+=0.16*rocked + Math.max(0,Math.sin(this.bob*1.3+2.2))*0.22*rocked;
+        r.thL[0]-=Math.max(0,Math.sin(this.bob*1.3))*0.08*rocked; r.hips[2]+=Math.sin(this.bob*0.9)*0.06*rocked;
+        if(rocked>0.35 && G.state==='fight' && !G.clinch){ this._wobT=(this._wobT??rand(0.6,1.6))-dt;
+          if(this._wobT<=0){ this._wobT=rand(0.7,1.8)/(0.5+rocked); const a=Math.random()*Math.PI*2;
+            this.kb.x+=Math.cos(a)*0.55*rocked; this.kb.z+=Math.sin(a)*0.55*rocked; this.moving=Math.max(this.moving,0.8); } } }
       const gassed = clamp((38-this.stamina)/38,0,1);
       if(gassed>0.01){ const br=Math.sin(this.bob*1.6);
         r.spine[0]+=0.18*gassed + br*0.04*gassed; r.head[0]+=0.12*gassed;       // hunched, heavy breathing
@@ -2799,6 +2823,7 @@ class Boxer{
         v[2]+=(om*om*wrap(t[2]-R.z)-2*ze*om*v[2])*h; R.z+=v[2]*h; } }
     if(this._feet){                                    // feet: up on the balls, the punching side's heel turns over
       let hl=this.down||this.sitting? 0 : (this._idleHeel??0.10), hr=hl;
+      if(!this.down && !this.sitting){ const w=this._wShift||0; hl+=Math.max(0,-w)*0.12; hr+=Math.max(0,w)*0.14; }   // heels follow the weight
       if(this.punch && !this.down){ const w=clamp(punchW(this.punch.key, clamp(this.punch.t/this.punch.dur,0,1)),0,1.1);
         if(/^r/.test(this.punch.key)) hr+=0.42*w; else if(this.punch.key!=='jab') hl+=0.22*w; }
       if(this.celebrate) hl=hr=0.25*Math.abs(Math.sin(this.celebrate.t*4.2));
@@ -3058,6 +3083,7 @@ class Boxer{
       const drive=Math.sin(clamp((u-0.05)/0.5,0,1)*Math.PI);            // 0→1→0 bell, peaks at impact
       const pv=this.punch.v||{};
       const step=(this.punch.key==='jab'||this.punch.key==='low')? (pv.flick?0.025: pv.power?0.12 : 0.08) : 0;   // flick vs stepping power jab
+      if(step>0.05 && (this.def.bounceMul||1)>1.15) this.bobY=(this.bobY||0)+drive*0.018;                         // dancers spring into the jab
       bf += drive*(heavy*0.075 + step);
     }
     this.root.position.set(this.pos.x + this.recoil.x + Math.sin(this.facing)*bf, G.matTop - this.koDrop - this.duckDrop - (this.sitDrop||0) + (this.bobY||0) - this.standDrop + (this._celebJump||0), this.pos.z + this.recoil.z + Math.cos(this.facing)*bf);
@@ -3539,6 +3565,7 @@ function resolveHit(att, def, p, gloveWorld){
   { const sd=G.fighters.indexOf(def), sa=G.fighters.indexOf(att);         // feel it in the hands (DualShock rumble)
     if(sd>=0) rumble(sd, blocked?0.12:clamp(dmg/12,0.25,1), blocked?0.3:0.7, blocked?70:clamp(90+dmg*14,110,330));
     if(sa>=0 && !blocked) rumble(sa, 0, clamp(dmg/16,0.12,0.45), 60); }
+  if(!blocked){ const tk=def.tkRound||(def.tkRound={jab:0,hook:0,up:0,body:0}); if(p.body) tk.body++; else if(/hook/.test(p.key)) tk.hook++; else if(/upper/.test(p.key)) tk.up++; else tk.jab++; }
   att._squash={key:gloveBoneOf[p.key], t:0.14};   // leather glove compresses on impact, springs back
   att.landed++; att.cleanByRound++; if(!blocked) att.dmgByRound=(att.dmgByRound||0)+dmg;   // judges weigh the damage done
   // #7 MOMENTUM: clean hits build a roll for the attacker and drain the man eating them
@@ -4110,7 +4137,7 @@ function wireNetMirror(){
     if(G.mode==='host' && at && dir) netEmit('sw',[at.x,at.y,at.z,dir.x,dir.z,dmg,G.fighters.indexOf(def)]); };
   for(const n of ['hit','thud','grunt','roar','swell','whoosh','ooh','bell','announce']){ const o=Audio[n]; if(typeof o!=='function') continue;
     Audio[n]=(...a)=>{ o(...a); netEmit('au',[n,a]); }; }
-  const _ps=showPunchStats; showPunchStats=(...a)=>{ const r=_ps(...a); netEmit('stats',[$('#statsPanel').innerHTML]); return r; };
+  const _ps=showPunchStats; showPunchStats=(...a)=>{ const r=_ps(...a); setTimeout(()=>netEmit('stats',[$('#statsPanel').innerHTML]),0); return r; };
   const _sr=showResult; showResult=(method,winner,loser,sc)=>{
     netEmit('result',[method, winner? G.fighters.indexOf(winner) : -1, sc||null, G.scores, (G.log||[]).slice(-40), G.round]);
     return _sr(method,winner,loser,sc); };
@@ -4697,7 +4724,7 @@ function beginRound(){
   showComment(`Runde ${G.round} — <b>los geht's!</b>`);
   // reset per-round counters, partial recovery between rounds
   $('#statsPanel').classList.remove('on');
-  for(const f of G.fighters){ f.cleanByRound=0; f.thrownByRound=0; f.dmgByRound=0; f.aggrByRound=0; f.lastPattern={}; f.kdThisRound=0;
+  for(const f of G.fighters){ f.cleanByRound=0; f.thrownByRound=0; f.dmgByRound=0; f.aggrByRound=0; f.lastPattern={}; f.kdThisRound=0; f.tkRound=null;
     if(G.round>1){ // a battered fighter recovers less in the corner — damage carries into the late rounds
       const wH=clamp(f._cumHead/360,0,0.55), wB=clamp(f._cumBody/360,0,0.50);
       f.headMax=clamp((f.headMax??100)+5*(1-wH),0,100); f.bodyMax=clamp((f.bodyMax??100)+5*(1-wB),0,100);
@@ -4719,7 +4746,27 @@ function showPunchStats(){
     row(y.thrownByRound,'THROWN',o.thrownByRound)+
     row(acc(y.cleanByRound,y.thrownByRound),'ACCURACY',acc(o.cleanByRound,o.thrownByRound))+
     row(y.landed,'TOTAL',o.landed);
+  const tip=$('#spTip'); if(tip){ const t=G.mode==='cpu'? cornerAdvice(y,o) : null;
+    tip.innerHTML = t? `<div class="tp-h">🗣 DEIN TRAINER</div><div class="tp-t">${t}</div>` : ''; }
   $('#statsPanel').classList.add('on');
+}
+// the corner man reads the round and gives ONE clear instruction — like the trainer between rounds in the console game
+function cornerAdvice(y,o){
+  const tk=y.tkRound||{jab:0,hook:0,up:0,body:0}, acc=y.thrownByRound? y.cleanByRound/y.thrownByRound : 0;
+  const tips=[];
+  if(y.kdThisRound) tips.push([10,'Du warst unten. Erst mal Deckung hoch (Block) — und wenn er dich erwischt: <b>klammern</b> (E / R2) und durchatmen.']);
+  if(o.stun>45 || o.headHP<35) tips.push([9,'Er wackelt! Jetzt ran an ihn — <b>Kombinationen zum Kopf</b>, den Uppercut zum Schluss.']);
+  if(y.stamina<42) tips.push([8,'Du bist platt. Weniger wilde Schläge, <b>mehr Jabs</b> — die Kraft kommt zurück, wenn du nicht alles verpulverst.']);
+  if(tk.hook>=3) tips.push([7,'Seine <b>Haken</b> kommen durch. Duck drunter weg (Shift / L2) und <b>konter mit dem Uppercut</b>.']);
+  if(tk.up>=2) tips.push([7,'Er trifft dich mit Uppercuts, wenn du dich nach vorn beugst. Bleib aufrecht und <b>lehn dich zurück</b> (Shift + A).']);
+  if(tk.jab>=5) tips.push([6,'Du frisst zu viele Jabs. <b>Kopf zur Seite</b> (Shift + W/S) und dann über seinen Jab den rechten Haken.']);
+  if(tk.body>=4) tips.push([6,'Er arbeitet an deinem Körper. Ellbogen eng — <b>halt den Block unten</b>, wenn er sich duckt.']);
+  if((o.bodyHP??100)<60) tips.push([6,'Sein Körper wird weich. <b>Bleib an der Leber</b> (L1 + Haken / ← ↓) — da kommt der Niederschlag.']);
+  if(y.thrownByRound>6 && acc<0.3) tips.push([5,'Zu viele Luftlöcher. <b>Geh näher ran</b>, bevor du schlägst — und arbeite hinter dem Jab.']);
+  if(y.thrownByRound<8) tips.push([4,'Du bist zu passiv — die Punktrichter sehen nichts. <b>Mehr Schläge</b>, mindestens den Jab.']);
+  if(o.def.guardStyle==='high' || o.def.guardStyle==='peekaboo') tips.push([3,'Er macht oben komplett zu. <b>Erst zum Körper</b>, dann öffnet sich die Deckung für den Kopf.']);
+  tips.push([1,'Gute Runde. <b>Bleib bei deinem Plan</b> — Jab, beweg dich, nicht stehen bleiben.']);
+  tips.sort((a,b)=>b[0]-a[0]); return tips[0][1];
 }
 function endRound(){
   G.state='between'; G.between=true; G.clinch=null;
