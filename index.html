@@ -4022,6 +4022,7 @@ const NET={peer:null, conn:null, mq:null, mqs:[], via:null, role:null, paired:fa
 // TWO WAYS TO CONNECT: first a DIRECT link between the two devices (WebRTC — fastest). Many routers, school/company
 // networks and phone networks block that, so after a few seconds the game falls back to a RELAY: both devices talk
 // through a free public message server (MQTT over a secure websocket). A little more delay, but it gets through.
+const NET_V=7;                                   // bump whenever the online protocol changes
 const MQ_URLS=['wss://broker.hivemq.com:8884/mqtt','wss://broker.emqx.io:8084/mqtt'];
 function netOpen(){ return NET.via==='p2p'? !!(NET.conn && NET.conn.open) : NET.via==='mq'? !!(NET.mq && NET.mq.connected && NET.paired) : false; }
 function mqTopic(side){ return 'fnlegacy/v1/'+NET.code+'/'+side; }
@@ -4058,9 +4059,14 @@ function netRecv(raw, via, client){
   NET.seen=performance.now();
   if(m.t==='bye'){ netClosed(); return; }
   if(m.t==='hb') return;
+  if(m.t==='ver'){ if(m.v!==NET_V){ netLeave(true); clearFighters(); defaultMenu();
+      showInfo('VERSCHIEDENE VERSIONEN', `<p>Ihr habt <b>unterschiedliche Versionen</b> des Spiels geladen — so funktionieren Schläge und Bewegungen nicht richtig.</p>
+        <p><b>Beide</b> bitte die Seite neu laden: am PC <b>Strg + F5</b>, am Handy den Tab schließen und den Link neu öffnen. Dann neu verbinden.</p>`, []); }
+    return; }
   netOnData(m);
 }
 function netPair(via){ NET.via=via; NET.paired=true; NET.seen=performance.now();
+  setTimeout(()=>netSend({t:'ver', v:NET_V}), 50);                 // both sides check they run the same game version
   if(NET.role==='host'){ G.mode='host'; NET.live=true; padToast('✅ Gegner verbunden'+(via==='mq'?' (über Server)':' (direkt)')); buildSelectUI(); show('scrSelect'); }
   else { G.mode='guest'; NET.live=false; padToast('✅ Verbunden'+(via==='mq'?' (über Server)':' (direkt)')); guestWait(); } }
 function netClosed(){ const was=G.mode; netLeave(true);
@@ -5949,7 +5955,7 @@ function boot(){
       newCareer, fighterById, pickCareerOpponent, careerResult, nextCareerFight, showCareer, saveCareer, loadCareer,
       careerBoxerDef, careerTrain, careerMatchup, get PERSONA(){return PERSONA;},
       maybeCareerEvent, prepDecision, careerEnding, get CAREER_EVENTS(){return CAREER_EVENTS;},
-      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, get NET(){return NET;}, get PAD(){return PAD;}, pollPads, humanInput, netHostTick, netGuestFrame, updateStage, get stage(){return stage;}, startReel, stopStage, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
+      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, get NET(){return NET;}, get PAD(){return PAD;}, pollPads, humanInput, netHostTick, netGuestFrame, animate, updateStage, get stage(){return stage;}, startReel, stopStage, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
       loadRealModel, get realTpl(){return realTpl;} };
     $('#loading').style.display='none';
     window.__booted=true;
