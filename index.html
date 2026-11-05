@@ -1023,15 +1023,15 @@ const ARENAS = [
 
 /* punch stats: arm 0=lead(left) 1=rear(right); power/stam/stun feed the damage model */
 const PUNCHES = {
-  jab:   {arm:0, name:'Jab',           power:0.55, dur:0.24, stam:4,  stun:0.6, body:false},
-  lhook: {arm:0, name:'Left Hook',     power:0.88, dur:0.32, stam:8,  stun:1.1, body:false},
-  rhook: {arm:1, name:'Right Hook',    power:1.12, dur:0.38, stam:11, stun:1.3, body:false},
-  lupper:{arm:0, name:'Left Uppercut', power:0.92, dur:0.34, stam:9,  stun:1.3, body:false, up:true},
-  rupper:{arm:1, name:'Right Uppercut',power:1.18, dur:0.40, stam:12, stun:1.5, body:false, up:true},
-  lbody: {arm:0, name:'Left Body Hook',power:0.82, dur:0.34, stam:8,  stun:0.5, body:true},
-  rbody: {arm:1, name:'Right Body Hook',power:1.08,dur:0.40, stam:11, stun:0.6, body:true},
-  low:   {arm:0, name:'Low Straight',  power:0.70, dur:0.27, stam:6,  stun:0.5, body:true},
-  cross: {arm:1, name:'Straight Right',power:1.02, dur:0.31, stam:9,  stun:1.15, body:false},
+  jab:   {arm:0, name:'Jab',           power:0.55, dur:0.28, stam:4,  stun:0.6, body:false},
+  lhook: {arm:0, name:'Left Hook',     power:0.88, dur:0.37, stam:8,  stun:1.1, body:false},
+  rhook: {arm:1, name:'Right Hook',    power:1.12, dur:0.43, stam:11, stun:1.3, body:false},
+  lupper:{arm:0, name:'Left Uppercut', power:0.92, dur:0.39, stam:9,  stun:1.3, body:false, up:true},
+  rupper:{arm:1, name:'Right Uppercut',power:1.18, dur:0.45, stam:12, stun:1.5, body:false, up:true},
+  lbody: {arm:0, name:'Left Body Hook',power:0.82, dur:0.39, stam:8,  stun:0.5, body:true},
+  rbody: {arm:1, name:'Right Body Hook',power:1.08,dur:0.45, stam:11, stun:0.6, body:true},
+  low:   {arm:0, name:'Low Straight',  power:0.70, dur:0.31, stam:6,  stun:0.5, body:true},
+  cross: {arm:1, name:'Straight Right',power:1.02, dur:0.36, stam:9,  stun:1.15, body:false},
 };
 
 /* -------- ANIMATION POSES (radians per joint [x,y,z]) -------------------------
@@ -1084,6 +1084,7 @@ const PUNCH_ANIM = {
 const PUNCH_WIND = { jab:[-0.035,-0.025,0.0], low:[-0.04,-0.06,0.0], cross:[-0.07,-0.03,0.02],
   lhook:[-0.05,0.0,0.13], rhook:[-0.09,-0.06,0.12], lbody:[-0.05,-0.04,0.12], rbody:[-0.09,-0.05,0.11],
   lupper:[-0.03,-0.17,0.05], rupper:[-0.05,-0.19,0.05] };
+let SLIP_SIGN=1;                                   // which way the body shifts for a slip (matched to the lean)
 const gloveBoneOf = {jab:'gL', lhook:'gL', lupper:'gL', lbody:'gL', low:'gL', cross:'gR', rhook:'gR', rupper:'gR', rbody:'gR'};
 
 /* difficulty — scales AI skill/aggression/reaction/combos + the damage the player takes vs deals */
@@ -1977,21 +1978,35 @@ function ropeGeo(R){
   return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.022, 7, false);
 }
 // bodies against the ropes: the rope bends around the fighter's back, and pushes him back into the ring
+// TAUT ROPES: a rope only moves when a body really touches it. The real bones of each fighter (hips, back,
+// shoulders, head, arms, gloves, knees) are spheres; where one presses past the rope line, the rope is pushed out
+// to the body's surface in the shape a tensioned rope really takes (straight lines from the posts to the contact —
+// a 'V'). Let go and it snaps back, overshoots and twangs for a moment. Nobody near it: it hangs dead still.
+const ROPE_PTS=[['Hips',0.17],['Spine1',0.17],['Spine2',0.19],['Head',0.12],['LeftShoulder',0.1],['RightShoulder',0.1],
+  ['LeftArm',0.07],['RightArm',0.07],['LeftForeArm',0.06],['RightForeArm',0.06],['LeftLeg',0.07],['RightLeg',0.07]];
 function updateRopes(dt){
   if(!ringRopes.length) return;
   for(const R of ringRopes) R.tgt.fill(0);
-  for(const f of G.fighters){ if(!f||f.down) continue;
-    const reach=0.46*((f.def.heightM||1.8)/1.8);
-    for(const R of ringRopes){ if(R.h===0) continue;                      // bottom rope is below the torso
-      const gap=R.A.x*R.nrm.x+R.A.z*R.nrm.z - (f.pos.x*R.nrm.x+f.pos.z*R.nrm.z), pen=reach-gap;
-      if(pen<=0) continue;
-      const ab=R.B.clone().sub(R.A), L=ab.length(); ab.divideScalar(L);
-      const tc=clamp(((f.pos.x-R.A.x)*ab.x+(f.pos.z-R.A.z)*ab.z)/L,0,1), w=[0,0.6,1,0.8][R.h];
-      for(let i=1;i<R.N-1;i++){ const t=i/(R.N-1), q=(t-tc)*L/0.45, g=Math.exp(-q*q);
-        R.tgt[i]=Math.max(R.tgt[i], pen*w*g); } } }
+  const v=updateRopes._v||(updateRopes._v=new THREE.Vector3());
+  const bodies=[...G.fighters, G.referee&&G.referee.boxer].filter(f=>f && f.realB && !(f.groundY!=null && f.groundY<G.matTop-0.01));
+  for(const f of bodies){ const k=(f.def.heightM||1.8)/1.8, pts=[];
+    for(const [n,r] of ROPE_PTS){ const bn=f.realB[n]; if(bn){ bn.getWorldPosition(v); pts.push([v.x,v.y,v.z,r*k]); } }
+    if(!f.isRef) for(const g of [f.j.gL,f.j.gR]) if(g){ g.localToWorld(v.set(0,-0.1,0)); pts.push([v.x,v.y,v.z,0.085]); }
+    for(const R of ringRopes){
+      const ab=R._ab||(R._ab=R.B.clone().sub(R.A)), L=R._L||(R._L=ab.length()), plane=R.A.x*R.nrm.x+R.A.z*R.nrm.z;
+      for(const [x,y,z,r] of pts){
+        const dy=Math.abs(y-R.A.y); if(dy>r+0.03) continue;                          // not at this rope's height
+        const pen=(x*R.nrm.x+z*R.nrm.z)+Math.sqrt(Math.max(0,r*r-dy*dy))-plane+0.022;  // body surface past the rope line
+        if(pen<=0) continue;
+        const tc=clamp(((x-R.A.x)*ab.x+(z-R.A.z)*ab.z)/(L*L),0.04,0.96), d=Math.min(pen,0.42);
+        for(let i=1;i<R.N-1;i++){ const t=i/(R.N-1), sh=t<tc? t/tc : (1-t)/(1-tc);    // the 'V' of a taut rope
+          if(d*sh>R.tgt[i]) R.tgt[i]=d*sh; } } } }
   for(const R of ringRopes){ let moved=false;
-    for(let i=1;i<R.N-1;i++){ const a=(R.tgt[i]-R.disp[i])*260 - R.vel[i]*13;   // stiff, lightly damped: it twangs back
-      R.vel[i]+=a*dt; R.disp[i]+=R.vel[i]*dt; if(Math.abs(R.vel[i])>1e-4||Math.abs(R.disp[i])>1e-4) moved=true; }
+    for(let i=1;i<R.N-1;i++){
+      if(R.tgt[i]>0 && R.tgt[i]>R.disp[i]){ R.vel[i]=Math.max(R.vel[i],(R.tgt[i]-R.disp[i])/Math.max(dt,1e-3)*0.5); R.disp[i]=R.tgt[i]; }   // a body pushes it: it gives at once
+      else { const acc=(R.tgt[i]-R.disp[i])*900 - R.vel[i]*6.5;                           // let go: snaps back and twangs (~5 Hz)
+        R.vel[i]+=acc*dt; R.disp[i]+=R.vel[i]*dt; }
+      if(Math.abs(R.vel[i])>2e-4||Math.abs(R.disp[i])>2e-4) moved=true; else { R.vel[i]=0; R.disp[i]=0; } }
     if(moved || R.dirty){ R.mesh.geometry.dispose(); R.mesh.geometry=ropeGeo(R); R.dirty=moved; } }
 }
 function buildRing(parent, A){
@@ -2020,6 +2035,11 @@ function buildRing(parent, A){
   const canvas=new THREE.Mesh(new THREE.BoxGeometry(RING*2, 0.06, RING*2),
     new THREE.MeshStandardMaterial({map:makeCanvasTex(A), roughness:0.86, metalness:0}));
   canvas.position.y=matH+0.03; canvas.receiveShadow=true; parent.add(canvas);
+  // ring steps at both corners' sides (the boxers climb them on the way in)
+  { const stMat=new THREE.MeshStandardMaterial({color:0x1a1d24, roughness:0.6, metalness:0.3});
+    for(const sg of [-1,1]) for(let i=0;i<3;i++){ const h=0.25*(i+1);
+      const st=new THREE.Mesh(new THREE.BoxGeometry(0.26,h,0.9), stMat);
+      st.position.set(sg*(4.2-0.25*i-0.13), h/2, sg*1.2); st.castShadow=true; st.receiveShadow=true; parent.add(st); } }
   // posts + ropes
   const postMat=new THREE.MeshStandardMaterial({color:0x161a20, metalness:0.4, roughness:0.5});
   const padMat=(th.pads||[0xe0383b,0x2f7dff,0xe0383b,0x2f7dff]).map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.7}));
@@ -2027,15 +2047,15 @@ function buildRing(parent, A){
   const posts=[];
   corners.forEach((c,i)=>{
     const x=c[0]*RING, z=c[1]*RING;
-    const post=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,1.7,12),postMat);
-    post.position.set(x,matH+0.85,z); post.castShadow=true; parent.add(post);
-    const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.9,12),padMat[i]);
-    pad.position.set(x,matH+0.5,z); parent.add(pad);
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,1.52,12),postMat);
+    post.position.set(x,matH+0.76,z); post.castShadow=true; parent.add(post);
+    const pad=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1.08,12),padMat[i]);
+    pad.position.set(x,matH+0.95,z); parent.add(pad);
     posts.push([x,z]);
   });
   const ropeMat=(th.ropes||[0xf4f6fb,0xe0383b,0x2f7dff,0xf4f6fb]).map(c=>new THREE.MeshStandardMaterial({color:c,roughness:0.55,
     metalness:(c===0xe8b84b?0.6:0)}));
-  const heights=[0.45,0.85,1.25,1.62];
+  const heights=[0.47,0.77,1.08,1.38];   // regulation: 40 / 70 / 100 / 130 cm above the canvas
   for(let h=0;h<heights.length;h++){
     for(let s=0;s<4;s++){
       const a=posts[s], b=posts[(s+1)%4];
@@ -2048,7 +2068,7 @@ function buildRing(parent, A){
       R.mesh=new THREE.Mesh(ropeGeo(R), ropeMat[h]); R.mesh.castShadow=true; parent.add(R.mesh); ringRopes.push(R);
     }
   }
-  G.ringHalf = 2.45; G.matTop = matH+0.06;
+  G.ringHalf = 2.8; G.matTop = matH+0.06;      // free movement until the back meets the ropes (at 2.95)
 }
 
 function buildCrowd(parent, A){
@@ -2649,6 +2669,7 @@ class Boxer{
     this.moving*=Math.max(0,1-dt*6);
     if(this._chop!==undefined){ r.shR=[-2.7+this._chop*2.25,-0.2,0.22]; r.elR=[-0.12,0,0]; r.spine[0]+=0.18; r.head[0]+=0.1; }
     if(this._wave){ r.shL=[-2.0,0,-0.5]; r.elL=[-0.4,0,0]; r.shR=[-2.0,0,0.5]; r.elR=[-0.4,0,0]; }   // waves it off
+    if(this._raise){ r.shL=[-2.85,0,0.25]; r.elL=[-0.15,0,0]; r.head=[-0.15,0,0]; }                 // the winner's hand goes up
     const kf=clamp(dt*9,0,1);
     for(const name in r){ const j=this.j[name]; if(!j) continue; const t=r[name];
       j.rotation.x+=(t[0]-j.rotation.x)*kf; j.rotation.y+=(t[1]-j.rotation.y)*kf; j.rotation.z+=(t[2]-j.rotation.z)*kf; }
@@ -2760,14 +2781,14 @@ class Boxer{
     //  duck  = bob & weave: sink through the knees, bend forward at the hips and roll in a U under the punch
     //  pull  = lean back out of range: hips go back, weight onto the rear leg, chin stays tucked
     if(this.evade && !this.down){
-      const E=this.evade; E.t+=dt; const u=E.t/E.dur, e=_ss(0,0.26,u)*(1-_ss(0.6,1,u)), sg=E.s;
+      const E=this.evade; E.t+=dt; const u=E.t/E.dur, e=_ss(0,E.type==='duck'?0.1:0.15,u)*(1-_ss(0.6,1,u)), sg=E.s;   // the head is gone fast
       if(E.type==='slip'){
         r.spine[2]+=-sg*0.30*e; r.chest[2]+=-sg*0.13*e; r.head[2]+=-sg*0.14*e; r.spine[1]+=sg*0.16*e; r.chest[1]+=sg*0.08*e;
         r.hips[2]+=sg*0.06*e; r.knL[0]+=0.17*e; r.knR[0]+=0.17*e; r.spine[0]+=0.08*e;
       } else if(E.type==='duck'){
         const w=Math.sin(Math.PI*clamp(u,0,1));
-        r.knL[0]+=0.74*e; r.knR[0]+=0.70*e; r.thL[0]+=-0.34*e; r.thR[0]+=-0.32*e;
-        r.spine[0]+=0.40*e; r.chest[0]+=0.12*e; r.hips[0]+=0.08*e; r.head[0]+=-0.06*e;   // eyes stay up
+        r.knL[0]+=0.98*e; r.knR[0]+=0.94*e; r.thL[0]+=-0.46*e; r.thR[0]+=-0.44*e;        // sink deep through the legs...
+        r.spine[0]+=0.14*e; r.chest[0]+=0.05*e; r.hips[0]+=-0.06*e; r.head[0]+=-0.04*e;   // ...hips back, not diving forward into the punch
         r.spine[2]+=-sg*0.24*w*e; r.chest[2]+=-sg*0.1*w*e;                            // the weave: roll across
       } else if(E.type==='pull'){
         r.spine[0]+=-0.32*e; r.chest[0]+=-0.12*e; r.hips[0]+=-0.10*e; r.head[0]+=0.06*e;
@@ -2850,6 +2871,22 @@ class Boxer{
 
     if(this.down) this.applyKO(dt, r);
 
+    if(this._ropeDuck>0.01 && !this.down){ const e=this._ropeDuck;                 // bending through the ropes
+      r.spine[0]+=0.8*e; r.chest[0]+=0.2*e; r.knL[0]+=0.55*e; r.knR[0]+=0.55*e; r.head[0]-=0.35*e; }
+    if(this.ritual && !this.down){ const R=this.ritual; R.t+=dt; const t=R.t, sw=Math.sin(t*2.2);
+      if(R.type==='arms' || (R.type==='shuffle' && t>1.4)){            // arms up to the crowd, turning to every side
+        r.shL=[-2.6,0,-0.45]; r.elL=[-0.4,0,0]; r.shR=[-2.6,0,0.45]; r.elR=[-0.4,0,0]; r.head=[-0.18,sw*0.25,0]; r.spine=[-0.1,sw*0.08,0]; }
+      else if(R.type==='bow'){ const e=Math.sin(Math.PI*clamp(t/1.6,0,1));            // a respectful bow to the crowd
+        r.spine=[0.75*e,0,0]; r.chest=[0.15*e,0,0]; r.head=[0.3*e,0,0]; r.hips=[0.05*e,0,0];
+        r.shL=[0.1,0,-0.1]; r.elL=[-0.25,0,0]; r.shR=[0.1,0,0.1]; r.elR=[-0.25,0,0]; }
+      else if(R.type==='pray'){ const e=clamp(t/0.6,0,1);                              // on one knee, gloves together, head bowed
+        r.thL=[-1.5*e,0,-0.1*e]; r.knL=[1.55*e,0,0]; r.thR=[0.15*e,0,0.1*e]; r.knR=[1.9*e,0,0];
+        r.spine=[0.2*e,0,0]; r.head=[0.5*e,0,0]; r.shL=[-1.25,0.45,0.25]; r.elL=[-1.95,0,0]; r.shR=[-1.25,-0.45,-0.25]; r.elR=[-1.95,0,0]; }
+      else if(R.type==='dance'){                                                    // the showman: arms wide, swinging hips
+        r.shL=[-1.4,0,-1.15+sw*0.2]; r.elL=[-0.6,0,0]; r.shR=[-1.4,0,1.15+sw*0.2]; r.elR=[-0.6,0,0];
+        r.hips[1]+=sw*0.25; r.spine[2]+=sw*0.12; r.head=[-0.1,-sw*0.2,0]; this.bobY=(this.bobY||0)+Math.abs(sw)*0.03; }
+      else if(R.type==='pace'){ r.head[0]+=0.35; r.spine[0]+=0.12; }                 // head down, glaring, pacing the corner
+    }
     if(this.celebrate && !this.down){ this.celebrate.t+=dt; const ct=this.celebrate.t;
       const hop=Math.abs(Math.sin(ct*4.2));                       // victory hops
       r.shL=[-2.75,0,-0.42]; r.elL=[-0.35,0,0]; r.shR=[-2.75,0,0.42]; r.elR=[-0.35,0,0];   // arms thrown up in a V
@@ -2863,8 +2900,8 @@ class Boxer{
     // SECOND-ORDER joint dynamics (spring + damper) instead of a first-order chase: every segment carries
     // momentum, overshoots a touch and settles — mass, not a puppet. Punches use a stiff, well-damped spring;
     // hit reactions a loose one (the head and torso wobble back); KO a heavy, dead one.
-    const ikOn = !this.down && !this.celebrate && !this.sitting;
-    const om = this.punch?30 : (this.celebrate?14 : (this.down?34 : (this.reaction?12:14)));
+    const ikOn = !this.down && !this.celebrate && !this.sitting && !(this.ritual && this.ritual.keyed);
+    const om = this.punch?30 : (this.celebrate?14 : (this.down?34 : (this.evade?26 : (this.reaction?12:14))));   // evasions snap
     const ze = this.punch?0.88 : (this.reaction?0.5 : (this.down?1.0 : 0.7));
     const jv=this._jv||(this._jv={}), nsub= dt>0.02? 3 : 1, h=dt/nsub, wrap=a=>a-Math.PI*2*Math.round(a/(Math.PI*2));
     for(const name in r){ const j=this.j[name]; if(!j) continue; const t=r[name], v=jv[name]||(jv[name]=[0,0,0]);
@@ -2885,8 +2922,9 @@ class Boxer{
       if(this._feet.L) this._feet.L.heel+=(hl-this._feet.L.heel)*k;
       if(this._feet.R) this._feet.R.heel+=(hr-this._feet.R.heel)*k;
     }
+    this._kneeDip = ((r.knL[0]+r.knR[0]) - (REST.knL[0]+REST.knR[0]))/2;           // how much the pose wants the knees bent
     // arms are placed by IK whenever the fighter is boxing (KO / stool / celebration keep their keyed poses)
-    if(!this.down && !this.celebrate && !this.sitting) this.armsIK(dt, opp);
+    if(!this.down && !this.celebrate && !this.sitting && !(this.ritual && this.ritual.keyed)) this.armsIK(dt, opp);
     else if(this._ikS) this._ikS.init=false;
   }
   // ---- ARM IK: every glove has a real target. Guard = fist positions relative to the skull (per style);
@@ -2944,6 +2982,9 @@ class Boxer{
         else if(kn.body){ if(s===kn.side) guard.addScaledVector(up,-0.30*ee).addScaledVector(out,-0.05*ee).addScaledVector(F,-0.03*ee); }
         else guard.addScaledVector(kn.v,0.13*ee).addScaledVector(out,0.06*ee).addScaledVector(up,-0.06*ee);
       }
+      if(this._touchG>0.01 && opp && opp.root){                                    // touch gloves: both fists meet in the middle
+        const mid=this.worldBody(v[10]).add(opp.worldBody(v[11])).multiplyScalar(0.5); mid.y+=0.22;
+        const tp=rig(mid).addScaledVector(out,0.06); guard.lerp(tp, clamp(this._touchG,0,1)); }
       const pole=v[8].set(0,-1,0).addScaledVector(out,0.35).addScaledVector(F,-0.2);
       let want=guard, fast=false;
       const P=this.punch;
@@ -2953,7 +2994,7 @@ class Boxer{
         P.lastW=w; const bell=Math.sin(Math.PI*clamp(w,0,1));
         const key=P.key, body=P.def.body, upc=!!P.def.up, hook=/hook|body/.test(key);
         // strike target: tracked through the wind-up, then locked in WORLD space (slips and ducks really make it miss)
-        if(!P.tgtW || u<0.12){ const tw=(P.tgtW||(P.tgtW=new THREE.Vector3()));
+        if(!P.tgtW || u<0.05){ const tw=(P.tgtW||(P.tgtW=new THREE.Vector3()));   // committed at the launch: duck or slip after that and it misses
           if(opp && opp.root){ if(body) opp.worldBody(tw); else opp.worldHead(tw); if(upc) tw.y-=0.09;
             if(!body && opp.blocking && opp.j.gL){                       // shelled up: the shot lands on the gloves
               const g1=opp.j.gL.localToWorld(new THREE.Vector3(0,-0.1,0)), g2=opp.j.gR.localToWorld(new THREE.Vector3(0,-0.1,0));
@@ -2965,7 +3006,7 @@ class Boxer{
         T.addScaledVector(dir, body? -0.25 : -0.22);        // wrist stops so the glove face sinks into the target
         const pv=P.v||{arc:1,aimX:0,aimY:0,elbow:0}; T.addScaledVector(out,pv.aimX).addScaledVector(up,pv.aimY);   // chin / nose / temple
         // hooks and uppercuts are bent-arm, close-range shots: they cannot reach as far as a straight
-        const reach=(this.j['el'+side].position.length()+this.j['g'+side].position.length())*(upc?0.74: hook?0.86: 1);
+        const reach=(this.j['el'+side].position.length()+this.j['g'+side].position.length())*(upc?0.86: hook?0.97: 1);
         const off=v[11].copy(T).sub(sh); if(off.length()>reach) T.copy(sh).addScaledVector(off.normalize(), reach);
         want=v[12].copy(guard).lerp(T, w);
         // WIND-UP: before it fires, the fist loads — the rear hand draws back, a hook's elbow swings out wide,
@@ -3036,10 +3077,102 @@ class Boxer{
     this._rq(sh.parent,S.q2); sh.quaternion.copy(S.q2.invert().multiply(S.q));
     el.rotation.set(-Math.acos(clamp(f.dot(u),-1,1)),0,0);
   }
+  // GETTING UP: off the back he sits up first, off the front (or side) he pushes up onto hands and knees — then one
+  // knee, one foot planted, a hand on the knee, and up. Every key is a real pose; the body rests on the canvas
+  // (syncReal) until the legs carry it again.
+  applyGetUp(dt, r, k){
+    const g=k.getUp, ph=k.ph, D=1.9; g.t+=dt; const u=clamp(g.t/D,0,1);
+    if(!g.src){ g.src={}; for(const n in ph.J||{}) g.src[n]=ph.J[n].x.slice(); g.ax=ph.ax; g.az=ph.az; g.back=ph.ax<-0.2; }
+    const SIT={spine:[0.35,0,0],chest:[0.1,0,0],head:[0.2,0,0],hips:[0,0,0],thL:[-1.5,0,-0.2],knL:[1.7,0,0],thR:[-1.4,0,0.2],knR:[1.6,0,0],
+               shL:[0.45,0,-0.35],elL:[-0.2,0,0],shR:[0.45,0,0.35],elR:[-0.2,0,0]};
+    const FOURS={spine:[0.2,0,0],chest:[0.05,0,0],head:[-0.45,0,0],hips:[0,0,0],thL:[-1.3,0,-0.1],knL:[1.9,0,0],thR:[-1.2,0,0.1],knR:[1.9,0,0],
+               shL:[-1.25,0,-0.12],elL:[-0.1,0,0],shR:[-1.25,0,0.12],elR:[-0.1,0,0]};
+    const KNEE={spine:[0.3,0,0],chest:[0.08,0,0],head:[0.1,0,0],hips:[0,0,0],thL:[-1.55,0,-0.1],knL:[1.6,0,0],thR:[0.1,0,0.1],knR:[1.85,0,0],
+               shL:[-0.6,0,-0.2],elL:[-1.2,0,0],shR:[-0.9,0,0.2],elR:[-1.6,0,0]};
+    const STAND={}; for(const n in KNEE) STAND[n]=(REST[n]||[0,0,0]).slice();
+    const k1=g.back? SIT : FOURS, a1=g.back? -0.55 : 1.0;
+    const sm=x=>x*x*(3-2*x), seg=(x,a,b)=>sm(clamp((x-a)/(b-a),0,1));
+    const w1=seg(u,0,0.32), w2=seg(u,0.32,0.66), w3=seg(u,0.66,1);
+    for(const n in KNEE){ const s0=g.src[n]||KNEE[n], P1=k1[n], P2=KNEE[n], P3=STAND[n], o=[0,0,0];
+      for(let i=0;i<3;i++){ let v=s0[i]+(P1[i]-s0[i])*w1; v+=(P2[i]-v)*w2; v+=(P3[i]-v)*w3; o[i]=v; }
+      r[n]=o; }
+    let ax=g.ax+(a1-g.ax)*w1; ax+=(0.28-ax)*w2; ax+=(0-ax)*w3;
+    let az=g.az*(1-w1);
+    this._koQ=koLeanQ(ax,az,this._koQ||new THREE.Quaternion());
+    const ke=new THREE.Euler().setFromQuaternion(this._koQ,'XZY'); this.koTilt.x=ke.x; this.koTilt.z=ke.z;
+    if(g.t>=D) finishRise(this);
+  }
+  // lying on the canvas: any glove or foot the pose pushed THROUGH the canvas is laid onto it by IK (keeping the
+  // limb's own bend), so the body lies flat and nothing pokes through the ring or props it up
+  koLimbs(){
+    if(!this._ikS) this._ikS={ v:Array.from({length:13},()=>new THREE.Vector3()), w:Array.from({length:10},()=>new THREE.Vector3()),
+      q:new THREE.Quaternion(), q2:new THREE.Quaternion(), m:new THREE.Matrix4(), tgt:{L:new THREE.Vector3(), R:new THREE.Vector3()},
+      pole:{L:new THREE.Vector3(), R:new THREE.Vector3()}, vel:{L:new THREE.Vector3(), R:new THREE.Vector3()}, init:false };
+    const fl=G.matTop, V=Boxer._kl||(Boxer._kl=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()]);
+    this.root.updateMatrixWorld(true);
+    // once he has landed and the limbs have stopped flailing, gravity lays them on the canvas (out cold = limp)
+    const k=this.koState, settle=(k && k.ph && k.ph.landed && !k.getUp)? clamp((this.koTime-0.75)/0.7,0,1) : 0;
+    for(const sd of ['L','R']){
+      const w=this.j['g'+sd].getWorldPosition(V[0]);
+      if(w.y<fl+0.1 || (settle>0 && w.y>fl+0.1)){ w.y = w.y<fl+0.1? fl+0.1 : w.y+(fl+0.1-w.y)*settle;
+        const sh=this.root.worldToLocal(this.j['sh'+sd].getWorldPosition(V[1])), el=this.root.worldToLocal(this.j['el'+sd].getWorldPosition(V[2]));
+        const pole=el.sub(sh).normalize();                                          // keep the elbow where it was
+        this.solveArm(sd, this.root.worldToLocal(w), pole); this.root.updateMatrixWorld(true); }
+      if(this._legL2){ const kn=this.j['kn'+sd], an=kn.localToWorld(V[0].set(0,-this._legL2[sd],0)), floorA=fl+(this._ankleH||0.08)*0.7;
+        if(an.y<floorA || (settle>0 && an.y>floorA)){ an.y = an.y<floorA? floorA : an.y+(floorA-an.y)*settle;
+          this.solveLeg(sd, this.root.worldToLocal(an)); this.root.updateMatrixWorld(true); } }
+    }
+  }
+  // ===================== FOOTWORK: planted feet + real steps =====================
+  // Each foot has its spot in the stance. It STAYS where it was put on the canvas until the body has moved too far
+  // from it — then it lifts, swings and is planted again (the moving side first: step and drag). The legs are solved
+  // to those feet every frame (2-bone IK, knees forward), so nothing slides and every step is a real step.
+  legsIK(dt){
+    const on=this.realB && this._legL2 && this._home && !this.down && !this.sitting && !this.isRef && !this._portrait && !this.celebrate && !(this.ritual && this.ritual.type==='pray');
+    if(!on){ this._fp=null; return; }
+    const F=this._fp||(this._fp={L:null,R:null}), gy=(this.groundY??G.matTop)+this._ankleH+(this.bobY||0)+(this._celebJump||0);
+    this.root.updateMatrixWorld(true);
+    for(const sd of ['L','R']){ const want=this.root.localToWorld(new THREE.Vector3().copy(this._home[sd])); want.y=0;
+      if(!F[sd]) F[sd]={p:want.clone(), step:null}; F[sd].want=want; }
+    const lead=new THREE.Vector3(this.vel.x,0,this.vel.z).multiplyScalar(0.07);            // step a little ahead of where the body is going
+    const err=sd=>F[sd].step? 0 : Math.hypot(F[sd].p.x-F[sd].want.x, F[sd].p.z-F[sd].want.z);
+    const go=(sd,quick)=>{ const f=F[sd], d=err(sd);
+      f.step={from:f.p.clone(), t:0, dur:clamp(0.14+d*0.4,0.14,0.3)*(quick?0.75:1), h:0.035+Math.min(0.07,d*0.16)}; };
+    const eL=err('L'), eR=err('R');
+    if(!F.L.step && !F.R.step){ if(Math.max(eL,eR)>0.07) go(eL>=eR?'L':'R'); }          // one foot at a time: step, then drag
+    else { if(!F.L.step && eL>0.32) go('L',true); if(!F.R.step && eR>0.32) go('R',true); }  // shoved / spinning: both
+    for(const sd of ['L','R']){ const f=F[sd], tgt=new THREE.Vector3();
+      if(f.step){ const S=f.step; S.t+=dt; const u=clamp(S.t/S.dur,0,1), e=u*u*(3-2*u);
+        const to=f.want.clone().add(lead);
+        f.p.copy(S.from).lerp(to,e); tgt.set(f.p.x, gy+Math.sin(Math.PI*u)*S.h, f.p.z);
+        if(u>=1){ f.step=null; this._stepSnd=(this._stepSnd||0)+1; } }
+      else tgt.set(f.p.x, gy, f.p.z);
+      this.solveLeg(sd, this.root.worldToLocal(tgt)); }
+  }
+  solveLeg(sd, T){
+    const th=this.j['th'+sd], kn=this.j['kn'+sd], w=Boxer._lw||(Boxer._lw=Array.from({length:10},()=>new THREE.Vector3()));
+    const m=Boxer._lm||(Boxer._lm=new THREE.Matrix4()), q=Boxer._lq||(Boxer._lq=new THREE.Quaternion()), q2=Boxer._lq2||(Boxer._lq2=new THREE.Quaternion());
+    const a=kn.position.length(), b=this._legL2[sd];
+    const Hp=this.root.worldToLocal(th.getWorldPosition(w[0]));
+    const dn=w[1].copy(T).sub(Hp); let dist=dn.length(); if(dist<1e-4) return; dn.divideScalar(dist);
+    dist=clamp(dist, Math.abs(a-b)+0.05, a+b-0.002);
+    const ca=clamp((a*a+dist*dist-b*b)/(2*a*dist),-1,1), sa=Math.sqrt(1-ca*ca);
+    const pole=w[2].set(sd==='L'?-0.15:0.15, 0, 1);                                      // knees forward, a touch out
+    const pp=w[3].copy(pole).addScaledVector(dn,-pole.dot(dn)); if(pp.lengthSq()<1e-6) pp.set(0,0,1); pp.normalize();
+    const u=w[4].copy(dn).multiplyScalar(ca).addScaledVector(pp,sa);                    // thigh direction
+    const K=w[5].copy(Hp).addScaledVector(u,a), A=w[6].copy(Hp).addScaledVector(dn,dist);
+    const f=A.sub(K).divideScalar(b);                                                     // shin direction
+    const bend=w[7].copy(f).addScaledVector(u,-f.dot(u)); if(bend.lengthSq()<1e-6) bend.copy(pp).negate(); bend.normalize();
+    const Y=w[8].copy(u).negate(), Z=w[9].copy(bend).negate(), X=new THREE.Vector3().crossVectors(Y,Z);
+    m.makeBasis(X,Y,Z); q.setFromRotationMatrix(m);
+    this._rq(th.parent,q2); th.quaternion.copy(q2.invert().multiply(q));
+    kn.rotation.set(Math.acos(clamp(f.dot(u),-1,1)),0,0);
+  }
   // knockdown: the legs go first (buckle), then the body topples — back like a felled tree, onto the side,
   // or face-first — arms splay as it lands, with a small bounce. The real model rests ON the canvas (syncReal).
   applyKO(dt, r){
     const k=this.koState; if(!k) return; const t=this.koTime;
+    if(k.getUp && k.ph){ this.applyGetUp(dt, r, k); return; }
     // PHYSICAL FALL: the body topples like a real mass (an inverted pendulum about the feet) along the line the
     // blow sent it — straight shots tip him back, hooks spin him sideways, body shots fold him forward. Legs give
     // at a random moment, sometimes he staggers a few steps first, the ropes catch him, and he bounces on the canvas.
@@ -3123,19 +3256,45 @@ class Boxer{
     const ke=new THREE.Euler().setFromQuaternion(this._koQ,'XZY'); this.koTilt.x=ke.x; this.koTilt.z=ke.z;
     this.koDrop = this.realMap ? 0 : lerp(this.koDrop, 0.58*fall, s);
   }
+  // CONTACT = WHAT YOU SEE. The glove (a sphere the size of the real glove) is swept along its path since the last
+  // frame and tested against the real volumes of the other man: his two gloves, his head and his torso. Whatever it
+  // touches FIRST is what it hit — a straight that lands on the chest is a body shot, one that lands on his gloves is
+  // blocked (even if he wasn't holding block), one that grazes past the ear is a miss.
   checkContact(opp){
-    const gb=this.gloveBones[gloveBoneOf[this.punch.key]];
-    // the punch is aimed by IK, so contact is honest geometry: glove centre vs skull/torso centre in 3D
+    const P=this.punch, gb=this.gloveBones[gloveBoneOf[P.key]], C=Boxer._cc||(Boxer._cc={a:new THREE.Vector3(),b:new THREE.Vector3(),c:new THREE.Vector3(),d:new THREE.Vector3(),e:new THREE.Vector3()});
     const gw=gb.localToWorld(new THREE.Vector3(0,-0.10,0));
-    const tgt=this.punch.body? opp.worldBody(new THREE.Vector3()) : opp.worldHead(new THREE.Vector3());
-    let touch = gw.distanceTo(tgt) < (this.punch.body? 0.29 : 0.24);
-    if(!touch && opp.blocking && !this.punch.body && opp.j.gL){            // glove meets glove: the block takes it
-      for(const g of [opp.j.gL,opp.j.gR]) if(gw.distanceTo(g.localToWorld(new THREE.Vector3(0,-0.1,0)))<0.17) touch=true; }
-    if(touch) resolveHit(this, opp, this.punch, gw);
+    const g0=P._gPrev? C.a.copy(P._gPrev) : C.a.copy(gw); P._gPrev=(P._gPrev||new THREE.Vector3()).copy(gw);
+    const ka=(this.def.heightM||1.8)/1.8, ko=(opp.def.heightM||1.8)/1.8, rg=0.072*ka+0.015;   // +1.5 cm: touching IS a hit
+    // distance from a point to the swept glove segment g0→gw (and the closest glove point)
+    const seg=(q,out)=>{ const ab=C.b.subVectors(gw,g0), L2=ab.lengthSq(); const t=L2>1e-8? clamp(C.c.subVectors(q,g0).dot(ab)/L2,0,1) : 1;
+      out.copy(g0).addScaledVector(ab,t); return out.distanceTo(q); };
+    const hits=[];
+    // his gloves (the guard) — only when they are up in front of him, not hanging at his hips
+    const ev=opp.evade, dodging=ev && ev.t/ev.dur>0.06 && ev.t/ev.dur<0.85;     // slipping / ducking / leaning: the guard goes with the head
+    if(opp.j && opp.j.gL && !dodging) for(const g of [opp.j.gL,opp.j.gR]){ const gc=g.localToWorld(C.d.set(0,-0.1,0));
+      const d=seg(gc,C.e); if(d<rg+0.08*ko) hits.push({zone:'guard', d:d-(rg+0.08*ko), at:C.e.clone()}); }
+    // his head
+    { const h=opp.worldHead(C.d); const d=seg(h,C.e); if(d<rg+0.115*ko) hits.push({zone:'head', d:d-(rg+0.115*ko), at:C.e.clone()}); }
+    // his torso: a capsule from the hips to the chest (the shoulders and arms are not 'the body')
+    if(opp.j && opp.j.hips && opp.j.chest){
+      const h0=opp.j.hips.getWorldPosition(new THREE.Vector3()), h1=opp.j.chest.getWorldPosition(new THREE.Vector3());
+      const rt=(0.145+((opp.def.body&&opp.def.body.belly)||0)*0.012)*ko;
+      let best=1e9, bp=null; for(let i=0;i<=4;i++){ const q=h0.clone().lerp(h1,i/4), d=seg(q,C.e); if(d<best){ best=d; bp=C.e.clone(); } }
+      if(best<rg+rt) hits.push({zone:'body', d:best-(rg+rt), at:bp}); }
+    if(!hits.length) return;
+    // the deepest contact wins, but a guard glove in the way is hit before the face behind it
+    hits.sort((a,b)=>a.d-b.d);
+    let h=hits[0]; const guard=hits.find(x=>x.zone==='guard'); if(guard && h.zone==='head' && guard.d<h.d+0.05) h=guard;
+    P.zone=h.zone; this._lastZone=h.zone; P.graze = h.zone!=='guard' && -h.d<0.035;   // only just touched: a glancing blow
+    if(P.graze) this._lastZone=h.zone+'-graze';
+    resolveHit(this, opp, P, h.at, h.zone);
   }
   syncRoot(dt){
-    const duckTarget = this.duckT>0? 0.24 : 0;     // physically lower the body when ducking
-    this.duckDrop = lerp(this.duckDrop||0, duckTarget, clamp(dt*11,0,1));
+    this._ldt=dt;
+    const duckTarget = this.duckT>0? 0.2 : 0;     // physically lower the body when ducking — a real bob, head under the punch line
+    { const E=this.evade, u=E? E.t/E.dur : 0, sl=(E && E.type==='slip' && !this.down)? E.s*_ss(0,0.15,u)*(1-_ss(0.6,1,u)) : 0;
+      this._slipOff=lerp(this._slipOff||0, sl*0.13*SLIP_SIGN, clamp(dt*16,0,1)); }
+    this.duckDrop = lerp(this.duckDrop||0, duckTarget, clamp(dt*24,0,1));
     this.sitDrop = lerp(this.sitDrop||0, this.sitting?0.40:0, clamp(dt*5,0,1));   // lower onto the stool
     let bf=this.bobFwd||0;
     // weight-shift: drive forward off the back foot during the strike of a POWER punch (steps into the shot)
@@ -3148,7 +3307,9 @@ class Boxer{
       if(step>0.05 && (this.def.bounceMul||1)>1.15) this.bobY=(this.bobY||0)+drive*0.018;                         // dancers spring into the jab
       bf += drive*(heavy*0.12 + step);
     }
-    this.root.position.set(this.pos.x + this.recoil.x + Math.sin(this.facing)*bf, G.matTop - this.koDrop - this.duckDrop - (this.sitDrop||0) + (this.bobY||0) - this.standDrop + (this._celebJump||0), this.pos.z + this.recoil.z + Math.cos(this.facing)*bf);
+    const so=this._slipOff||0, mr=(this.mirror||1);
+    const kdip = (this._home && !this.down && !this.sitting)? clamp(this._kneeDip||0, -0.1, 1.3)*0.16 : 0;   // bent knees = a lower body
+    this.root.position.set(this.pos.x + this.recoil.x + Math.sin(this.facing)*bf + Math.cos(this.facing)*so*mr, (this.groundY??G.matTop) - kdip - this.koDrop - this.duckDrop - (this.sitDrop||0) + (this.bobY||0) - this.standDrop + (this._celebJump||0), this.pos.z + this.recoil.z + Math.cos(this.facing)*bf - Math.sin(this.facing)*so*mr);
     if(this._yaw==null) this._yaw=this.facing;                       // turn with inertia (feet have to pivot)
     let dy=this.facing-this._yaw; while(dy>Math.PI) dy-=Math.PI*2; while(dy<-Math.PI) dy+=Math.PI*2;
     this._yaw+=dy*(1-Math.exp(-dt*(this.down?3:9)));
@@ -3158,6 +3319,17 @@ class Boxer{
     this.recoil.multiplyScalar(Math.max(0,1-dt*6));
     if(!this.down){ const s=clamp(dt*6,0,1);
       this.koTilt.x=lerp(this.koTilt.x,0,s); this.koTilt.z=lerp(this.koTilt.z,0,s); this.koDrop=lerp(this.koDrop,0,s); }
+    this.legsIK(this._ldt||1/60);
+    if(this.down && this.realB){                     // lying: FIRST rest the trunk on the canvas, THEN lay the limbs onto it
+      this.root.updateMatrixWorld(true);
+      const v=Boxer._pv2||(Boxer._pv2=new THREE.Vector3()), sc=(this.def.heightM||1.8)/1.76;
+      let lo=1e9; for(const [j,r] of [['hips',0.11],['spine',0.11],['chest',0.12],['neck',0.08],['shL',0.07],['shR',0.07],['knL',0.06],['knR',0.06]])
+        if(this.j[j]) lo=Math.min(lo, this.j[j].getWorldPosition(v).y - r*sc);
+      lo=Math.min(lo, this.worldHead(v).y-0.1*sc);
+      let d=G.matTop-lo; if(this.koTime<0.55 && d<0) d=0;
+      this.root.position.y += d + (this._koBounce||0); this.root.updateMatrixWorld(true); this._koRested=true;
+      this.koLimbs();
+    } else this._koRested=false;
     if(this.realMap) this.syncReal();
   }
   // attach a real skinned model (Mixamo-style bone names) and drive its bones from the procedural rig
@@ -3216,6 +3388,9 @@ class Boxer{
       const e={J:this.root, b:B[n], O:bq.clone(), heel:0}; this.realMap.push(e); this._feet[side]=e; }
     this.realToes=[B[nL+'ToeBase']||B[nL+'Foot'], B[nR+'ToeBase']||B[nR+'Foot']];
     this.toeBindY=Math.min(this.realToes[0].getWorldPosition(d).y, this.realToes[1].getWorldPosition(u).y);
+    // FOOTWORK calibration: shin length (knee → ankle) and the ankle's height above the canvas when the foot is flat
+    this._legL2={L:P(nL+'Foot').distanceTo(P(nL+'Leg')), R:P(nR+'Foot').distanceTo(P(nR+'Leg'))};
+    this._ankleH=(P(nL+'Foot').y+P(nR+'Foot').y)/2;
     // head target = middle of the skull (the Head bone sits at the skull base)
     this.headOffset = this.j.head.worldToLocal(P('Head').lerp(B.HeadTop_End? P('HeadTop_End'):P('Head'), 0.45));
     // fists live inside the gloves: shrink the real hands so no fingers poke through (the referee keeps his hands)
@@ -3232,6 +3407,8 @@ class Boxer{
     // back to the live pose
     for(const n in this.j) this.j[n].rotation.set(0,0,0);
     this.setPose(REST,1);
+    { this.root.updateMatrixWorld(true); this._home={};          // where each foot stands in the fighting stance (root space)
+      for(const sd of ['L','R']){ const a=this.j['kn'+sd].localToWorld(new THREE.Vector3(0,-this._legL2[sd],0)); this._home[sd]=new THREE.Vector3(a.x,0,a.z); } }
     this.root.position.copy(svP); this.root.rotation.copy(svR); this.root.scale.copy(svS);
     this.standDrop=0;
     // hide the procedural body — keep the GLOVES (they now sit exactly on the real wrists)
@@ -3364,14 +3541,14 @@ class Boxer{
     }
     this.root.updateMatrixWorld(true);
     // DOWN: the lowest body part rests ON the canvas (never sinks through), with the landing bounce
-    if(this.down && this.realB){
+    if(this.down && this.realB && !this._koRested){
       const B=this.realB, v=Boxer._pv||(Boxer._pv=new THREE.Vector3()), sc=(this.def.heightM||1.8)/1.76;
-      const pts=Boxer._koPts||(Boxer._koPts=[['Hips',0.12],['Spine1',0.12],['Spine2',0.13],['Head',0.1],['HeadTop_End',0.03],
-        ['LeftShoulder',0.08],['RightShoulder',0.08],['LeftForeArm',0.045],['RightForeArm',0.045],['LeftLeg',0.06],['RightLeg',0.06],
-        ['LeftFoot',0.05],['RightFoot',0.05],['LeftToeBase',0.02],['RightToeBase',0.02]]);
+      // only the TRUNK carries him on the canvas (hips, back, shoulders, head, knees) — an arm or a glove that ended up
+      // underneath must not prop the whole body up in the air; koLimbs() lays the limbs onto the canvas instead
+      const pts=Boxer._koPts||(Boxer._koPts=[['Hips',0.11],['Spine1',0.11],['Spine2',0.12],['Head',0.1],['HeadTop_End',0.03],
+        ['LeftShoulder',0.07],['RightShoulder',0.07],['LeftLeg',0.06],['RightLeg',0.06]]);
       let lo=1e9;
       for(const [n,r] of pts){ const b=B[n]; if(b) lo=Math.min(lo, b.getWorldPosition(v).y - r*sc); }
-      for(const g of [this.j.gL,this.j.gR]) lo=Math.min(lo, g.getWorldPosition(v).y-0.09);
       let d=G.matTop-lo; if(this.koTime<0.55 && d<0) d=0;              // still falling: only push out of the canvas
       this.root.position.y += d + (this._koBounce||0);
       this.root.updateMatrixWorld(true);
@@ -3381,7 +3558,7 @@ class Boxer{
       const v=Boxer._pv||(Boxer._pv=new THREE.Vector3());
       this.realRoot.updateMatrixWorld(true);
       const lo=Math.min(this.realToes[0].getWorldPosition(v).y, this.realToes[1].getWorldPosition(v).y);
-      const want=G.matTop + this.toeBindY + (this.bobY||0) + (this._celebJump||0);
+      const want=(this.groundY??G.matTop) + this.toeBindY + (this.bobY||0) + (this._celebJump||0);
       this.root.position.y += want-lo;
       this.root.updateMatrixWorld(true);
     }
@@ -3496,11 +3673,16 @@ function updateReferee(dt){
     if(kd){ const d=G.knockdownActor, c=(d.realB&&d.realB.Hips)? d.realB.Hips.getWorldPosition(tmp2) : d.pos;
       tx=clamp(c.x+0.85,-h,h); tz=clamp(c.z+0.85,-h,h); }
     else if(G.clinch){ tx=clamp(mid.x+px*0.55,-h,h); tz=clamp(mid.z+pz*0.55,-h,h); }   // steps right in to break them
+    else if(G.state==='result' && G.celebrant){ const w=G.celebrant, d=Math.hypot(w.pos.x,w.pos.z)||1;   // beside the winner, on the ring-centre side
+      tx=w.pos.x-w.pos.x/d*0.62+w.pos.z/d*0.12; tz=w.pos.z-w.pos.z/d*0.62-w.pos.x/d*0.12; }
+    else if(G.state==='ringwalk' && G.walkin && (G.walkin.phase==='center'||G.walkin.phase==='back')){ tx=-0.8; tz=0; }   // between them for the instructions (far side from the lens)
     const dx=tx-b.pos.x, dz=tz-b.pos.z, dist=Math.hypot(dx,dz);
     if(dist>(kd?0.05:0.3)){ const k=Math.min(1,(kd?2.6:1.5)*dt/dist); b.pos.x+=dx*k; b.pos.z+=dz*k; b.moving=Math.min(1,dist*2.5); }
     if(kd){ const d=G.knockdownActor, c=(d.realB&&d.realB.Hips)? d.realB.Hips.getWorldPosition(tmp2) : d.pos;
       b.faceTarget(c); b._chop=Math.pow((G.countT%0.95)/0.95,0.65); b._look=0; }
+    else if(G.state==='result' && G.celebrant){ b.faceTarget({x:0,z:-4}); b._chop=undefined; b._look=0; }
     else { b.faceTarget(mid); b._chop=undefined; b._look=Math.sin(ref.bob*0.7)*0.22; }
+    b._raise = G.state==='result' && !!G.celebrant && b.pos.distanceTo(tmp2.set(tx,0,tz))<0.35;      // raises the winner's arm
     b._wave = !!G.clinch && b.pos.distanceTo(tmp2.set(tx,0,tz))<0.5;                  // arms in between them: 'BREAK!'
     ref.bob+=0; b.update(dt,null); return;
   }
@@ -3526,22 +3708,22 @@ function updateReferee(dt){
 function removeReferee(){ if(G.referee){ scene.remove(G.referee.root); G.referee=null; } }
 
 /* ----------------------------- COMBAT RESOLVE ----------------------------- */
-function resolveHit(att, def, p, gloveWorld){
-  // caller already confirmed the glove is in range; D = the punch definition
-  const D = p.def;
+function resolveHit(att, def, p0, gloveWorld, hz){
+  // caller already confirmed the glove really touched him; hz = what it touched (head / body / guard)
+  const p = hz? Object.assign({}, p0, {body: hz==='body' || (hz==='guard' && p0.body)}) : p0;
+  const D = p0.def;
   const target = (p.body? def.worldBody(new THREE.Vector3()) : def.worldHead(new THREE.Vector3()));
   att.punch.hit=true; // one resolution per punch
   if(def.down){ return; }
-  // slip beats the jab from the matching side
-  if(def.slip!==0 && !p.body && p.key==='jab'){
-    flash('SLIP!', def); Audio.thud(0.4,true); att.balance-=4; def.react('light', -def.slip, 0.1); return;
-  }
-  // block
+  // (a slip is now pure geometry: the head moved — if the glove still touched it, it landed)
+  // block: what the glove actually hit decides it
   let mult=1; let blocked=false;
-  if(def.blocking){
-    if(p.body){ mult=0.45; } else { mult=0.18; }
-    blocked=true;
-  }
+  if(hz==='guard'){ if(def.blocking){ blocked=true; mult=p.body? 0.45 : 0.18; }               // a held block: the shell takes it
+    else mult=0.55; }                                                                        // a loose guard: the gloves get driven into the face
+  else if(def.blocking){ if(p.body){ mult=0.45; blocked=true; } else { mult=0.6; } }            // a head shot that got round/through the guard
+  else if(!hz && def.blocking){ mult=p.body?0.45:0.18; blocked=true; }
+  if(hz==='body' && !p0.body) mult*=0.75;                                                     // a head punch that landed on the chest
+  if(p0.graze) mult*=0.35;                                                                    // grazed him: it touched, it barely hurt
   // FNC counter timing: catching a man mid-punch is a textbook counter — hardest while he's still loading
   let counter=1, perfectCounter=false;
   if(def.punch && !blocked){
@@ -3615,7 +3797,7 @@ function resolveHit(att, def, p, gloveWorld){
     shake(clamp(dmg*0.028,0.05,0.55));                                          // the impact travels into the lens
     att.kb.addScaledVector(fdir, clamp(dmg*0.022,0,0.32));                        // the puncher drives through the shot
     if(p.body) def.react('body', push, power, false);
-    else def.react((def.stun>48 || dmg>9)?'stagger':'light', push, power, D.up);
+    else def.react(((def.stun>48 || dmg>9) && !p0.graze)?'stagger':'light', push, power, D.up);
     if(dmg>3) G.hitStop = clamp(0.022 + dmg*0.0078, 0.03, 0.15);              // impact freeze grows with the blow
     if(!G.debugCam) camera.fov -= clamp(dmg*0.32,0,5.5);                        // the lens 'punches in' and eases back
   } else {
@@ -3748,7 +3930,7 @@ function triggerKnockdown(att, def, fdir, p, body, flush, flashKO){
   const canMash = isPlayer && !threeKD && def.knockdowns<5;
   // presses needed scales UP with every knockdown and with a weak/tired fighter
   const need = canMash ? Math.round((10 + def.knockdowns*7) * (1 + (1-def.def.chin/100)*0.5) * (def.stamina<35?1.25:1)) : 0;
-  def.koState={ fdir: fdir? {x:fdir.x, z:fdir.z} : null, t:0, dir, fall:0, target:1, countTarget: willRise? 1.6:9.5, willRise, body, flush, resolved:false,
+  def.koState={ fdir: fdir? {x:fdir.x, z:fdir.z} : null, t:0, dir, fall:0, target:1, countTarget: willRise? rand(2.4,5.8):9.5, willRise, body, flush, resolved:false,
     isPlayer, canMash, need, mash:0 };
   if(G.reelMode){ G.koSlowmo=1.15; return; }     // menu highlight reel: just the fall, in slow motion
   { const sd=G.fighters.indexOf(def); if(sd>=0) rumble(sd,1,1,650); }
@@ -3821,6 +4003,7 @@ addEventListener('keydown',e=>{
   if(k==='e' && G.state==='fight' && !keys[k]) humanClinch(0);                     // tie him up
   if(k==='r' && G.state==='fight' && !keys[k] && !G.paused) humanPunch(0,'cross');   // the straight right
   if(G.state==='replay' && !keys[k]){ skipReplay(); }                               // any key skips the KO replay
+  if(G.state==='ringwalk' && G.walkin && !keys[k] && k!=='escape') skipWalkin();    // …and the walk-in
   if(keys[k]){ if(isArrow||['w','a','s','d',' '].includes(k)) e.preventDefault(); return; }
   keys[k]=true;
   if(G.state!=='menu'){
@@ -3871,6 +4054,7 @@ function wireTouch(){
   document.querySelectorAll('#touch .t-btn[data-p]').forEach(b=>{ const p=b.dataset.p;
     b.addEventListener('touchstart', e=>{ e.preventDefault(); b.classList.add('press');
       if(G.state==='replay'){ skipReplay(); return; }                  // tap = skip the KO replay
+      if(G.state==='ringwalk'){ skipWalkin(); return; }
       if(G.state==='between' && G.breakT>0){ G.breakT=0.01; return; }   // tap = skip the corner break
       if(G.state==='knockdown'){ mashTap(); return; }
       humanPunch(0,p);
@@ -3987,6 +4171,7 @@ function pollPads(dt){
       if(hit(12)) cycleCam();
       if(G.state==='knockdown'){ if(hit(0)||hit(1)||hit(2)||hit(3)) humanMash(slot); }
       else if(G.state==='replay'){ if(hit(0)) skipReplay(); }
+      else if(G.state==='ringwalk'){ if(hit(0)||hit(9)) skipWalkin(); }
       else if(G.state==='between'){ if(hit(0) && G.breakT>0) G.breakT=0.01; }
       else if(G.state==='fight' && !G.paused){
         const body=!!now[4];                                           // L1 held = to the body
@@ -4462,13 +4647,13 @@ function resolveBodyCollision(a,b){
   clampToRing(a); clampToRing(b);
 }
 function clampToRing(b){
-  const h=G.ringHalf+0.26;                          // the ropes give: a fighter can be driven ~25 cm into them
+  const h=G.ringHalf+0.24;                          // the ropes give: a fighter can be driven ~20 cm into them
   b.pos.x=clamp(b.pos.x,-h,h); b.pos.z=clamp(b.pos.z,-h,h);
 }
 function ropeSpring(b,dt){                          // past the ring line the ropes push back (and bounce a man off)
   if(!b.kb) return; const h=G.ringHalf;
   for(const ax of ['x','z']){ const ex=Math.abs(b.pos[ax])-h; if(ex<=0) continue; const sg=Math.sign(b.pos[ax]);
-    b.kb[ax]-=sg*ex*70*dt;                                                          // the ropes load up like a spring...
+    b.kb[ax]-=sg*ex*30*dt;                                                          // the ropes load up like a spring...
     if(b.kb[ax]*sg<0) b.kb[ax]*=1+dt*1.5;                                            // ...and fire him back out (the bounce)
     else b.pos[ax]-=sg*ex*Math.min(1,dt*1.2); }                                      // leaning on them: eased back in
 }
@@ -4874,6 +5059,11 @@ function short(b){ return b.def.name.split('"')[1]? '"'+b.def.name.split('"')[1]
 /* count overlay */
 function showCount(on){ $('#count').classList.toggle('on',on); if(!on) $('#getup').classList.remove('on'); }
 function riseUp(def){
+  const k=def.koState;
+  if(def.down && def.realMap && k && k.ph){ if(!k.getUp){ k.getUp={t:0}; $('#getup').classList.remove('on'); Audio.roar&&Audio.roar(0.6); } return; }   // animate it
+  finishRise(def);
+}
+function finishRise(def){
   // FNC get-up: every knockdown costs part of the ceiling for good, but beating the count gives back a solid share of
   // what's left (more if he got up quickly). Then a few seconds of second wind before he can be dropped again.
   def.down=false; def.koState=null;
@@ -4887,7 +5077,7 @@ function riseUp(def){
   log(`${short(def)} steht wieder! Was für ein Herz!`);
   G.state='fight'; setCam(G.preferredCam); G.countShown=0;
   // real boxing: after beating the count, the fighter goes to his corner (ref wipes the gloves) before the action resumes
-  G.postKD={ who:def, other:(def===player()?ai():player()), t:2.2 };   // ref check + opponent returns from neutral corner
+  G.postKD={ who:def, other:(def===player()?ai():player()), t:2.8 };   // ref check + opponent returns from neutral corner
   showComment(`<b>${short(def)}</b> steht wieder — der Ringrichter schickt ihn kurz in die Ecke, dann geht es weiter!`);
 }
 // post-knockdown: the risen fighter walks to his corner then back to centre; the opponent waits in a neutral corner
@@ -4907,9 +5097,9 @@ function updatePostKD(dt){
   const p=G.postKD; if(!p) return; p.t-=dt;
   const who=p.who, other=p.other;
   who.punch=null; other.punch=null; who.blocking=false; other.blocking=false;
-  who.moving=0; who.faceTarget(other.pos);                       // stands for the ref's check (still wobbling)
-  const back=stepToward(other, 0, other.side*0.9, 1.9, dt); other.faceTarget(who.pos);
-  if(back && p.t>0.3) p.t=0.3;                                   // opponent back in position → wrap up the check
+  who.moving=0; who.faceTarget(G.referee&&G.referee.boxer? G.referee.boxer.pos : other.pos);   // the ref's standing count / check
+  const n=[[1.8,-1.8],[-1.8,1.8]].reduce((a,b)=>(Math.hypot(other.pos.x-a[0],other.pos.z-a[1])<Math.hypot(other.pos.x-b[0],other.pos.z-b[1])?a:b));
+  stepToward(other, n[0], n[1], 1.6, dt); other.faceTarget(who.pos);    // he waits in the NEUTRAL corner until 'Box!'
   if(p.t<=0){ G.postKD=null; flash('BOX!', null, 'WEITER GEHT\'S'); Audio.bell(1); }
 }
 function countOut(def){
@@ -4926,6 +5116,7 @@ function updateCount(dt){
     crowdExcite=clamp(crowdExcite+0.05,0.3,1);
   }
   // --- PLAYER: interactive mash to beat the count ---
+  if(k.getUp) return;                                     // he's getting up: the count stops
   if(k.canMash){
     const ratio=clamp(k.mash/k.need,0,1); G.mashRatio=ratio;
     if(def===player() || G.mode==='local2p'){ $('#getup').classList.add('on'); $('#guFill').style.width=(ratio*100)+'%'; }
@@ -4944,7 +5135,7 @@ function updateCount(dt){
 function startMatch(){
   // build fighters
   for(const f of G.fighters){ scene.remove(f.root); }
-  G.fighters=[ new Boxer(G.you,-1), new Boxer(G.opp,+1) ]; G.postKD=null; G.clinch=null;
+  G.fighters=[ new Boxer(G.you,-1), new Boxer(G.opp,+1) ]; G.postKD=null; G.clinch=null; G.walkin=null;
   replayBuf.length=0; G.replay=null; $('#replayTag').classList.remove('on'); $('#statsPanel').classList.remove('on');
   // ONE mode: everyone wears the real model (falls back to procedural only if the file can't load)
   { const attach=()=>{ for(const f of G.fighters) f.attachReal();
@@ -4965,7 +5156,88 @@ function startMatch(){
   ringwalk();
   if(G.mode==='host') netSend({t:'start', a:G.you.id, b:G.opp.id, ar:G.arena.id, rounds:G.rounds, rl:G.roundLen});
 }
+/* ======================= RING WALK =======================
+   Like fight night for real: the away fighter (red) comes first, then the house fighter. Each walks the aisle,
+   climbs the ring steps, bends through the ropes and does his thing in his corner (Pacquiao kneels and prays,
+   Inoue bows, Ali shuffles, Fury dances, Tyson paces like a caged animal…). Then the ref calls them to the centre:
+   stare-down, instructions, touch gloves, back to the corners — bell. Any key / tap skips it. */
+const ENTRANCE_RITUAL={tyson:'pace', ali:'shuffle', fury:'dance', usyk:'bow', canelo:'arms', inoue:'bow', mayweather:'arms', pacquiao:'pray', garcia:'shadow', custom:'shadow'};
+function walkinPath(s){ const M=G.matTop; return [
+  {x:s*4.42,z:-s*1.5,y:0}, {x:s*4.42,z:s*1.2,y:0}, {x:s*4.07,z:s*1.2,y:0.25}, {x:s*3.82,z:s*1.2,y:0.5}, {x:s*3.57,z:s*1.2,y:0.75},
+  {x:s*3.27,z:s*1.2,y:M}, {x:s*2.55,z:s*1.2,y:M,duck:true}, {x:s*1.9,z:s*1.9,y:M} ]; }
+function skipWalkin(){
+  if(!G.walkin || G.mode==='guest') return;
+  for(const f of G.fighters){ const c=cornerFor(f); f.pos.set(c.x,0,c.z); f.groundY=undefined; f._fp=null; f.ritual=null; f._ropeDuck=0; f._touchG=0; f.faceTarget({x:0,z:0}); }
+  G.walkin=null; try{ speechSynthesis.cancel(); }catch(e){} beginRound();
+}
+function updateWalkin(dt){
+  const W=G.walkin; if(!W) return; W.t+=dt; W.pt=(W.pt||0)+dt;
+  const blue=player(), red=ai(); if(!blue||!red) return;
+  const next=ph=>{ W.phase=ph; W.pt=0; W.wp=1; };
+  const walk=(f,s)=>{ const path=walkinPath(s), tgt=path[W.wp], prev=path[W.wp-1];
+    const dx=tgt.x-f.pos.x, dz=tgt.z-f.pos.z, d=Math.hypot(dx,dz), climb=tgt.y!==prev.y;
+    const sp=tgt.duck? 0.6 : climb? 0.75 : 1.1;
+    if(d>0.02){ const st=Math.min(d,sp*dt); f.pos.x+=dx/d*st; f.pos.z+=dz/d*st; f.moving=1; f.faceTarget(tgt); }
+    const L=Math.hypot(tgt.x-prev.x,tgt.z-prev.z)||1, u=clamp(1-d/L,0,1);
+    f.groundY=prev.y+(tgt.y-prev.y)*u; f._ropeDuck= tgt.duck? Math.sin(Math.PI*u) : 0;
+    if(d<=0.02){ W.wp++; if(W.wp>=path.length){ f.groundY=undefined; f._ropeDuck=0; return true; } }
+    return false; };
+  const ritual=(f,s)=>{ const type=ENTRANCE_RITUAL[f.def.id]||'arms', c=cornerFor(f);
+    if(!f.ritual){ f.ritual={type, t:0, keyed: type!=='shadow' && type!=='pace'}; crowdExcite=Math.max(crowdExcite,0.85); Audio.roar&&Audio.roar(0.7); }
+    if(type==='pace'){ const a=Math.sin(W.pt*1.6)*0.55; stepToward(f, c.x+a*s, c.z-a*s, 1.0, dt); f.faceTarget({x:c.x+(a>0?2:-2)*s, z:c.z-(a>0?2:-2)*s}); }
+    else if(type==='shadow'){ f.faceTarget({x:0,z:0}); if(!f.punch && Math.random()<dt*2.8) f.startPunch(['jab','jab','cross','lhook','rhook','lupper'][Math.floor(Math.random()*6)]); }
+    else if(type==='shuffle' && W.pt<1.4){ if(!f.fidget) f.fidget={type:'shuffle', t:0, dur:1.4}; f.faceTarget({x:0,z:0}); }
+    else { f.faceTarget({x:-s*4,z:0}); f.facing+=Math.sin(W.pt*0.9)*0.4; }       // to the crowd, turning
+    return W.pt>3.0; };
+  // camera for a walking fighter: from inside the ring, on the far side of the centre, so he walks TOWARD the lens
+  // (no swinging round him when he turns at the steps)
+  const camOn=(f,dist,hgt,side)=>{ const gy=f.groundY??G.matTop, d=Math.hypot(f.pos.x,f.pos.z)||1;
+    const ux=-f.pos.x/d, uz=-f.pos.z/d, k=Math.min(d-0.3, 2.9);
+    G.rwCam=new THREE.Vector3(f.pos.x+ux*k-uz*side*0.6, G.matTop+hgt, f.pos.z+uz*k+ux*side*0.6);
+    G.rwLook=new THREE.Vector3(f.pos.x, gy+1.15, f.pos.z); };
+  switch(W.phase){
+    case 'red':  if(walk(red,1)){ next('redRit'); } camOn(red,2.6,1.55,0.9); break;
+    case 'redRit': if(ritual(red,1)){ red.ritual=null; next('blue');
+        const nm=blue.def.name.replace(/"/g,''); Audio.announce(`And in the blue corner... ${nm}!`, {cut:true}); flash(nm.toUpperCase(), null, 'BLAUE ECKE'); }
+      { const a=W.pt*0.35; const c=red.pos; G.rwCam=new THREE.Vector3(c.x-Math.sin(a)*2.4, G.matTop+1.5, c.z-Math.cos(a)*2.4); G.rwLook=new THREE.Vector3(c.x,G.matTop+1.25,c.z); } break;
+    case 'blue': if(walk(blue,-1)){ next('blueRit'); } camOn(blue,2.6,1.55,-0.9); break;
+    case 'blueRit': if(ritual(blue,-1)){ blue.ritual=null; next('center'); flash('TALE OF THE TAPE',null,`${short(blue)} vs ${short(red)}`); }
+      { const a=W.pt*0.35; const c=blue.pos; G.rwCam=new THREE.Vector3(c.x+Math.sin(a)*2.4, G.matTop+1.5, c.z+Math.cos(a)*2.4); G.rwLook=new THREE.Vector3(c.x,G.matTop+1.25,c.z); } break;
+    case 'center': {                                          // the ref calls them in: stare-down, instructions, touch gloves
+      const okB=stepToward(blue,0,-0.5,1.1,dt), okR=stepToward(red,0,0.5,1.1,dt);
+      blue.faceTarget(okB? red.pos : {x:0,z:-0.5}); red.faceTarget(okR? blue.pos : {x:0,z:0.5});
+      if(okB) blue.faceTarget(red.pos); if(okR) red.faceTarget(blue.pos);
+      if(okB && okR && !W.stare){ W.stare=W.pt; showComment('Der Ringrichter gibt die letzten Anweisungen…'); }
+      if(W.stare!=null){ const st=W.pt-W.stare, e=st>2.3? Math.sin(Math.PI*clamp((st-2.3)/0.8,0,1)) : 0;
+        blue._touchG=e; red._touchG=e;                         // gloves touch
+        if(st>3.2){ blue._touchG=red._touchG=0; next('back'); } }
+      G.rwCam=new THREE.Vector3(2.3, G.matTop+1.45, 0.15); G.rwLook=new THREE.Vector3(0, G.matTop+1.4, 0); break; }
+    case 'back': { const cb=cornerFor(blue), cr=cornerFor(red);
+      const okB=stepToward(blue,cb.x,cb.z,1.3,dt), okR=stepToward(red,cr.x,cr.z,1.3,dt);
+      if(!okB) blue.faceTarget(cb); else blue.faceTarget(red.pos); if(!okR) red.faceTarget(cr); else red.faceTarget(blue.pos);
+      G.rwCam=new THREE.Vector3(0, G.matTop+2.6, -5.0); G.rwLook=new THREE.Vector3(0, G.matTop+1.0, 0);
+      if((okB&&okR) || W.pt>4){ G.walkin=null; beginRound(); } break; }
+  }
+}
 function ringwalk(){
+  // the full walk-in (needs the real model + an arena with the aisle); the old short version stays as a fallback
+  if(realTpl && player() && ai() && player().realMap && ai().realMap){
+    G.state='ringwalk'; setCam(4);
+    const red=ai(), blue=player();
+    for(const [f,sg] of [[blue,-1],[red,1]]){ const p0=walkinPath(sg)[0]; f.pos.set(p0.x,0,p0.z); f.groundY=0; f._fp=null; f.ritual=null; f.faceTarget({x:p0.x, z:sg*3}); }
+    G.walkin={phase:'red', t:0, pt:0, wp:1};
+    camLerp.set(red.pos.x*1.1, 1.8, red.pos.z-2.5); lookLerp.set(red.pos.x, 1.2, red.pos.z);
+    Audio.crowd(0.6); crowdExcite=0.75;
+    flash(G.arena.name.toUpperCase(),null,G.arena.cap);
+    showComment(`Willkommen in der <b>${G.arena.name}</b>! <span style="opacity:.7">— Taste / Tippen: Einlauf überspringen</span>`);
+    const nm=red.def.name.replace(/"/g,'');
+    Audio.announce(`Ladies and gentlemen! Live from ${G.arena.name}... Introducing first, fighting out of the red corner... ${nm}!`, {cut:true});
+    setTimeout(()=>{ if(G.walkin) flash(nm.toUpperCase(), null, 'ROTE ECKE'); }, 1200);
+    return;
+  }
+  ringwalkShort();
+}
+function ringwalkShort(){
   G.state='ringwalk'; setCam(4);
   // dramatic pan from tunnel
   const you=player();
@@ -4987,7 +5259,8 @@ function ringwalk(){
 }
 function beginRound(){
   G.between=false; G.state='fight'; setCam(G.preferredCam); G.postKD=null;
-  for(const f of G.fighters){ f.sitting=false; }   // stand up out of the corner; the fight resumes from here
+  for(const f of G.fighters){ f.sitting=false; f.groundY=undefined; f.ritual=null; f._ropeDuck=0; f._touchG=0; }   // in the ring, walk-in over
+  G.walkin=null;
   showStools(false);
   document.body.classList.remove('cinema');
   G.clock=G.roundLen;
@@ -5263,7 +5536,7 @@ function animate(){
     }
     else if(G.state==='between'){ updateBetween(gdt); updateBreak(dt); }   // corners + skippable 30s break
     else if(G.state==='knockdown'){ updateNeutralCorner(gdt); }            // ref sends the opponent to a neutral corner
-    else if(G.state==='ringwalk'){ updateEntrance(gdt); }    // walk in from the corners at the start
+    else if(G.state==='ringwalk'){ if(G.walkin) updateWalkin(gdt); else updateEntrance(gdt); }    // the walk-in
     if(stage) updateStage(G.reelMode? gdt : dt);
     if(G.state==='replay'){ playReplay(dt); }                // slow-mo playback drives the bones — no live updates
     else {
@@ -5955,7 +6228,7 @@ function boot(){
       newCareer, fighterById, pickCareerOpponent, careerResult, nextCareerFight, showCareer, saveCareer, loadCareer,
       careerBoxerDef, careerTrain, careerMatchup, get PERSONA(){return PERSONA;},
       maybeCareerEvent, prepDecision, careerEnding, get CAREER_EVENTS(){return CAREER_EVENTS;},
-      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, get NET(){return NET;}, get PAD(){return PAD;}, pollPads, humanInput, netHostTick, netGuestFrame, animate, updateStage, get stage(){return stage;}, startReel, stopStage, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
+      updatePostKD, updateNeutralCorner, updateBreak, beginRound, get Audio(){return Audio;}, recordReplay, playReplay, startReplay, endReplay, skipReplay, showPunchStats, triggerKnockdown, riseUp, countOut, resolveBodyCollision, bodyShape, updateCamera, get NET(){return NET;}, skipWalkin, updateWalkin, finishRise, setSlipSign(v){ SLIP_SIGN=v; }, get PAD(){return PAD;}, pollPads, humanInput, netHostTick, netGuestFrame, animate, updateStage, get stage(){return stage;}, startReel, stopStage, updateRopes, get ringRopes(){return ringRopes;}, handlePlayerMovement, startClinch, updateClinch, breakClinch, endRound, decision, get portraits(){return _portraits;}, get replayBuf(){return replayBuf;},
       loadRealModel, get realTpl(){return realTpl;} };
     $('#loading').style.display='none';
     window.__booted=true;
