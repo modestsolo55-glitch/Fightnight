@@ -692,6 +692,12 @@
   .t-trail{position:fixed;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(255,255,255,.55);
     pointer-events:none;z-index:43;transition:opacity .25s, transform .25s}
   .ctlscheme{display:flex;align-items:center;gap:14px;justify-content:center;margin-top:16px}
+  .padtest{display:none;max-width:580px;margin:14px auto 0;padding:12px 16px;border-radius:8px;background:var(--panel2);border-left:3px solid var(--accent);text-align:left}
+  .padtest.on{display:block}
+  .padtest .pt-h{font-family:var(--disp);font-weight:900;letter-spacing:3px;color:var(--accent);margin-bottom:6px}
+  .padtest .pt-pad{font-size:13px;line-height:1.5;margin-top:6px} .padtest .pt-pad.use{color:#7ef0c0}
+  .padtest .pt-k{display:inline-block;min-width:26px;padding:1px 6px;margin:2px;border-radius:4px;background:rgba(255,255,255,.08);text-align:center;font-weight:800;font-size:12px}
+  .padtest .pt-k.on{background:var(--accent);color:#111}
 
   /* ---------- broadcast overlays: instant replay + punch stats ---------- */
   #replayTag{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:56;display:none;
@@ -877,7 +883,8 @@
     <div class="ev"><div class="ts">🎮 Abwehr</div><div class="tx"><kbd>R1</kbd> Block · <kbd>L2</kbd> + linker Stick: ← zurücklehnen, ↑↓ ausweichen, allein = abducken · <kbd>R2</kbd> Clinch</div></div>
     <div class="ev"><div class="ts">🎮 Sonst</div><div class="tx"><kbd>OPTIONS</kbd> Pause · <kbd>Steuerkreuz ↑</kbd> Kamera · am Boden: Tasten hämmern</div></div>
   </div>
-  <div class="row"><button class="btn" id="btnCtlBack">Zurück</button></div>
+  <div class="padtest" id="padTest"><div class="pt-h">🎮 CONTROLLER-TEST</div><div id="padTestBody">Drücke eine Taste auf dem Controller…</div></div>
+  <div class="row"><button class="btn" id="btnPadTest">🎮 Controller testen</button><button class="btn" id="btnCtlBack">Zurück</button></div>
 </div>
 
 <!-- RESULT / DOC -->
@@ -4235,20 +4242,47 @@ function wireTouch(){
    R1 blocks, L2 + stick evades, R2 clinches, OPTIONS pauses, d-pad ↑ switches camera. Face buttons as an
    alternative: □ jab, ✕ lead hook, ○ rear hook, △ uppercut. Menus: stick/d-pad + ✕, ○ = back. */
 const PAD={prev:{}, rs:{}, slots:[null,null], navT:0, conn:0};
-function padList(){ try{ return [...navigator.getGamepads()].filter(p=>p&&p.connected); }catch(e){ return []; } }
-function assignPads(){ const L=padList(); PAD.conn=L.length;
-  if(G.mode==='local2p') PAD.slots = L.length>=2? [L[0].index,L[1].index] : [null, L[0]? L[0].index : null];   // 1 pad: keyboard is player 1
-  else PAD.slots=[L[0]? L[0].index : null, null]; }
-function padOf(slot){ const i=PAD.slots[slot]; if(i==null) return null; try{ const p=navigator.getGamepads()[i]; return p&&p.connected? p : null; }catch(e){ return null; } }
+function padRaw(){ try{ return [...(navigator.getGamepads()||[])].filter(p=>p&&p.connected); }catch(e){ return []; } }
+// EVERY PAD IN ONE LAYOUT. Most browsers report a PS4 pad in the 'standard' layout (✕ ○ □ △ = 0 1 2 3, L1 R1 L2 R2 = 4–7,
+// SHARE OPTIONS L3 R3 = 8–11, d-pad 12–15, right stick = axes 2/3). Some don't (Bluetooth, Firefox, older drivers):
+// then the raw DualShock order is □ ✕ ○ △ and the right stick sits on axes 2/5 with the d-pad as a 'hat' axis.
+// padRead() turns any of them into the standard layout, so the rest of the game only knows one.
+const _hat=[[12],[12,15],[15],[13,15],[13],[13,14],[14],[12,14]];
+function padRead(p){
+  if(p.mapping==='standard' || p.buttons.length>=17 && p.axes.length===4) return {p, index:p.index, b:Array.from({length:Math.max(17,p.buttons.length)},(_,i)=>{ const x=p.buttons[i]; return {pressed:!!(x&&x.pressed), value:(x&&x.value)||0}; }), a:[p.axes[0]||0,p.axes[1]||0,p.axes[2]||0,p.axes[3]||0]};
+  const sony=/054c|playstation|wireless controller|dualshock/i.test(p.id), R=p.buttons, b=Array.from({length:17},()=>({pressed:false,value:0}));
+  const set=(to,from)=>{ const x=R[from]; if(x){ b[to]={pressed:!!x.pressed, value:x.value||(x.pressed?1:0)}; } };
+  if(sony){ set(2,0); set(0,1); set(1,2); set(3,3); for(let i=4;i<12;i++) set(i,i); set(16,12); }
+  else { for(let i=0;i<Math.min(16,R.length);i++) set(i,i); }
+  const A=p.axes; let rx=A[2]||0, ry= A.length>5? (A[5]||0) : (A[3]||0);
+  if(sony && A.length>5){ for(const t of [3,4]) if(A[t]!=null && A[t]>-0.5 && !b[t+3].pressed) b[t+3]={pressed:A[t]>0.3, value:(A[t]+1)/2}; }   // analogue L2 / R2
+  for(const ai of [9,6,7]){ const h=A[ai]; if(h==null || Math.abs(h)>1.05) continue;                    // the d-pad 'hat' (neutral ≈ 1.29)
+    const k=Math.round((h+1)/2*7); if(k>=0 && k<8 && ai===9) for(const bi of _hat[k]) b[bi]={pressed:true,value:1}; }
+  return {p, index:p.index, b, a:[A[0]||0, A[1]||0, rx, ry]};
+}
+function padActive(r){ return r.b.some((x,i)=>i!==16 && x.pressed) || Math.hypot(r.a[0],r.a[1])>0.5 || Math.hypot(r.a[2],r.a[3])>0.5; }
+function padList(){ return padRaw().map(padRead); }
+// Windows often shows ONE PS4 pad twice (Steam, DS4Windows, a second driver) — one of them silent. So the pad a player
+// is really using is the one that was pressed last, not simply the first in the list.
+function assignPads(){ const L=padList(); PAD.conn=L.length; PAD.seen=PAD.seen||{};
+  const now=performance.now(); for(const r of L){ if(padActive(r)) PAD.seen[r.index]=now; else if(PAD.seen[r.index]==null) PAD.seen[r.index]=-1; }
+  const byUse=[...L].sort((x,y)=>(PAD.seen[y.index]??-1)-(PAD.seen[x.index]??-1));
+  if(G.mode==='local2p'){
+    const keep=PAD.slots.filter(i=>i!=null && L.some(r=>r.index===i));                // a pad that has a player keeps him
+    const used=byUse.filter(r=>PAD.seen[r.index]>0).map(r=>r.index);
+    const pick=[...keep, ...used.filter(i=>!keep.includes(i)), ...L.map(r=>r.index).filter(i=>!keep.includes(i)&&!used.includes(i))];
+    PAD.slots = pick.length>=2? [pick[0],pick[1]] : [null, pick[0]??null];             // 1 pad: keyboard is player 1
+  } else PAD.slots=[byUse[0]? byUse[0].index : null, null]; }
+function padOf(slot){ const i=PAD.slots[slot]; if(i==null) return null; const p=padRaw().find(x=>x.index===i); return p? padRead(p) : null; }
 function kbInput(){ const behind=(G.cam===2||G.cam===3); let f=0,s=0;
   if(behind){ if(keys['w']) f+=1; if(keys['s']) f-=1; if(keys['d']) s-=1; if(keys['a']) s+=1; }   // cam behind you: W = step in
   else { if(keys['d']) f+=1; if(keys['a']) f-=1; if(keys['w']) s+=1; if(keys['s']) s-=1; }        // side-on: D = toward him
   return {f, s, block:!!keys[' '], dodge:!!keys['shift']}; }
 function padInput(slot){ const p=padOf(slot); if(!p) return null;
-  let lx=p.axes[0]||0, ly=p.axes[1]||0; const m=Math.hypot(lx,ly);
+  let lx=p.a[0], ly=p.a[1]; const m=Math.hypot(lx,ly);
   if(m<0.22){ lx=0; ly=0; } else { const k=(m-0.22)/(1-0.22)/m; lx*=k; ly*=k; }                   // smooth dead zone
   const right = G.mode==='local2p' && slot===1;                  // player 2 stands on the right of the screen
-  return { f: right? -lx : lx, s: right? ly : -ly, block: !!(p.buttons[5]&&p.buttons[5].pressed), dodge: ((p.buttons[6]&&p.buttons[6].value)||0)>0.35 }; }
+  return { f: right? -lx : lx, s: right? ly : -ly, block: p.b[5].pressed, dodge: p.b[6].pressed || p.b[6].value>0.35 }; }
 function humanInput(slot){
   if(slot===1 && G.mode==='host') return NET.inp;
   const inp={f:0,s:0,block:false,dodge:false};
@@ -4268,7 +4302,7 @@ function rumble(slot, strong, weak, ms){
   if(G.mode==='guest') return;
   if(G.mode==='host' && slot===1){ netEmit('rb',[strong,weak,ms]); return; }
   padRumble(padOf(slot), strong, weak, ms); }
-function padRumble(p, strong, weak, ms){ const va=p&&p.vibrationActuator;
+function padRumble(p, strong, weak, ms){ const va=p&&(p.p||p).vibrationActuator;
   if(va && va.playEffect) try{ va.playEffect('dual-rumble',{startDelay:0, duration:ms, strongMagnitude:strong, weakMagnitude:weak}).catch(()=>{}); }catch(e){} }
 function menuOpen(){ return !!document.querySelector('#pauseOv.on') || [...document.querySelectorAll('.screen')].some(x=>!x.classList.contains('hidden')); }
 function navItems(){
@@ -4278,7 +4312,7 @@ function navItems(){
     .map(e=>{ if(e.tabIndex<0) e.tabIndex=0; return e; }); }
 function padMenu(p, hit, dt){
   const items=navItems(); if(!items.length) return;
-  const lx=p.axes[0]||0, ly=p.axes[1]||0, b=p.buttons, on=i=>b[i]&&b[i].pressed;
+  const lx=p.a[0], ly=p.a[1], b=p.b, on=i=>b[i]&&b[i].pressed;
   let dir=0; if(on(12)||on(14)||ly<-0.6||lx<-0.6) dir=-1; else if(on(13)||on(15)||ly>0.6||lx>0.6) dir=1;
   if(!dir) PAD.navT=0; else if((PAD.navT-=dt)<=0){ PAD.navT=PAD.navT===0? 0.32 : 0.16;
     let i=items.indexOf(document.activeElement); i= i<0? 0 : (i+dir+items.length)%items.length; items[i].focus(); }
@@ -4286,11 +4320,23 @@ function padMenu(p, hit, dt){
   if(hit(1)){ const bk=items.find(e=>e.id==='btnBack'||e.id==='poResume'||e.id==='btnCtlBack'||/^zurück$/i.test(e.textContent.trim())); if(bk) bk.click(); }
   if(hit(9) && G.paused) togglePause();
 }
+function padTestDraw(){
+  const box=$('#padTest'); if(!box || !box.classList.contains('on') || $('#scrCtl').classList.contains('hidden')) return;
+  const L=padList(), body=$('#padTestBody'); if(!body) return;
+  if(!navigator.getGamepads){ body.innerHTML='Dieser Browser unterstützt keine Controller. Bitte <b>Chrome</b> oder <b>Edge</b> benutzen.'; return; }
+  if(!L.length){ body.innerHTML='Kein Controller gefunden.<br>1. PS4-Controller per <b>USB-Kabel</b> oder Bluetooth verbinden.<br>2. <b>Eine Taste drücken</b> (z. B. ✕) — erst dann zeigt der Browser ihn.<br>3. Klappt es nicht: Steam / DS4Windows schließen und die Seite neu laden (Strg+F5).'; return; }
+  const N=['✕','○','□','△','L1','R1','L2','R2','SHARE','OPT','L3','R3','↑','↓','←','→','PS'];
+  body.innerHTML=L.map(r=>{ const use=PAD.slots.includes(r.index);
+    return `<div class="pt-pad${use?' use':''}"><b>${use?'▶ IM SPIEL: ':''}Controller ${r.index+1}</b> — ${(r.p.id||'').replace(/</g,'').slice(0,60)} <small>(${r.p.mapping||'kein Standard-Layout → wird umgerechnet'})</small><br>`+
+      N.map((n,i)=>`<span class="pt-k${r.b[i]&&r.b[i].pressed?' on':''}">${n}</span>`).join('')+
+      `<br>Linker Stick ${r.a[0].toFixed(2)} / ${r.a[1].toFixed(2)} · Rechter Stick ${r.a[2].toFixed(2)} / ${r.a[3].toFixed(2)}</div>`; }).join('')+
+    (L.length>1? '<div class="pt-pad">Mehrere Controller erkannt — das Spiel nimmt den, den du zuletzt benutzt hast.</div>' : '');
+}
 function pollPads(dt){
-  if(!navigator.getGamepads) return; assignPads();
+  if(!navigator.getGamepads) return; assignPads(); padTestDraw();
   const slots = G.mode==='guest'? [0] : [0,1];
   for(const slot of slots){ const p=padOf(slot); if(!p) continue;
-    const id=p.index, prev=PAD.prev[id]||{}, now={}; p.buttons.forEach((b,i)=>now[i]=b.pressed);
+    const id=p.index, prev=PAD.prev[id]||{}, now={}; p.b.forEach((b,i)=>now[i]=b.pressed);
     const hit=i=>now[i]&&!prev[i];
     if(menuOpen()){ if(slot===0 || G.mode==='local2p') padMenu(p, hit, dt); }
     else {
@@ -4309,7 +4355,7 @@ function pollPads(dt){
         if(hit(10)||hit(11)) humanPunch(slot, hit(10)?'lupper':'rupper');                // L3 / R3 = uppercuts
         if(hit(7)) humanClinch(slot);
         // TOTAL PUNCH CONTROL: flick the right stick — the direction picks the punch
-        const rx=p.axes[2]||0, ry=p.axes[3]||0, m=Math.hypot(rx,ry), rs=PAD.rs[id]||(PAD.rs[id]={armed:true});
+        const rx=p.a[2], ry=p.a[3], m=Math.hypot(rx,ry), rs=PAD.rs[id]||(PAD.rs[id]={armed:true});
         if(m<0.35) rs.armed=true;
         else if(m>0.75 && rs.armed){ rs.armed=false;
           const sec=Math.round(((Math.atan2(-ry,rx)*180/Math.PI)+360)%360/45)%8;     // 0 →, 1 ↗, 2 ↑, 3 ↖, 4 ←, 5 ↙, 6 ↓, 7 ↘
@@ -4320,7 +4366,7 @@ function pollPads(dt){
     PAD.prev[id]=now;
   }
 }
-addEventListener('gamepadconnected', e=>padToast('🎮 Controller verbunden'+(e.gamepad&&e.gamepad.id? ' · '+e.gamepad.id.replace(/\(.*?\)/g,'').trim().slice(0,32):'')));
+addEventListener('gamepadconnected', e=>padToast('🎮 Controller bereit'+(e.gamepad&&e.gamepad.id? ' · '+e.gamepad.id.replace(/\(.*?\)/g,'').trim().slice(0,32):'')));
 addEventListener('gamepaddisconnected', ()=>padToast('🎮 Controller getrennt'));
 function padToast(t){ let el=$('#padToast'); if(!el){ el=document.createElement('div'); el.id='padToast'; document.body.appendChild(el); }
   el.textContent=t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); }
@@ -6326,6 +6372,7 @@ function wireMenus(){
   $('#btnOnline').onclick=()=>showTwoPlayer();
   $('#btnStore').onclick=()=>showShop('trunks');
   updateCoinBadge();
+  $('#btnPadTest').onclick=()=>{ const b=$('#padTest'); b.classList.toggle('on'); padTestDraw(); };
   $('#btnCtlBack').onclick=()=>show('scrTitle');
   $('#btnBack').onclick=()=>show('scrTitle');
   $('#btnFight').onclick=()=>{ Audio.init();Audio.resume();
